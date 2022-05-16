@@ -19,7 +19,7 @@
 - [License](#license)
 
 ## Overview
-This library was designed to support the [Multibase](#) package. At the moment is contains support for encoding/decoding into base 2, 8, 10, 16, 32, 36, 58 and 64 with some common variants for certain bases.
+This library was designed to support the [Multibase](https://github.com/swift-libp2p/swift-multibase.git) package. At the moment is contains support for encoding/decoding into base 2, 8, 10, 16, 32, 36, 58 and 64 with some common variants for certain bases.
 
 #### Heads up ‼️
 - This library was built quickly and dirty as part of a larger project.
