@@ -39,16 +39,16 @@ class BaseXPerformance: XCTestCase {
     /// measured [Time, seconds] average: 0.000,
     /// relative standard deviation: 191.024%,
     /// values: [0.000468, 0.000033, 0.000027, 0.000025, 0.000024, 0.000024, 0.000024, 0.000024, 0.000024, 0.000024]
-    func testBase16ALTExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-            let baseEncoded = try! BaseX.encodeALT(testString, into: .base16Hex)
-            XCTAssertEqual(try! BaseX.decodeALT(baseEncoded, as: .base16Hex), testString)
-            
-            XCTAssertEqual(try! BaseX.decodeALT("796573206d616e692021", as: .base16Hex), testString)
-        }
-    }
+    //func testBase16ALTExample() throws {
+    //    // This is an example of a performance test case.
+    //    self.measure {
+    //        // Put the code you want to measure the time of here.
+    //        let baseEncoded = try! BaseX.encodeALT(testString, into: .base16Hex)
+    //        XCTAssertEqual(try! BaseX.decodeALT(baseEncoded, as: .base16Hex), testString)
+    //
+    //        XCTAssertEqual(try! BaseX.decodeALT("796573206d616e692021", as: .base16Hex), testString)
+    //    }
+    //}
     
     /// CryptoSwifts hex algorithm is way faster (averaging 0.002s)
     func testBase16LargeExample() throws {
@@ -64,13 +64,13 @@ class BaseXPerformance: XCTestCase {
     /// measured [Time, seconds] average: 7.227,
     /// relative standard deviation: 0.527%,
     /// values: [7.197384, 7.232839, 7.247377, 7.234434, 7.164804, 7.193941, 7.280049, 7.296718, 7.216844, 7.208051]
-    func testBase16ALTLargeExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-            let data = try! BaseX.decodeALT(largeTestString, as: .base16Hex)
-            XCTAssertEqual(BaseX.encodeALT(data, into: .base16Hex), largeTestString)
-        }
-    }
+    //func testBase16ALTLargeExample() throws {
+    //    // This is an example of a performance test case.
+    //    self.measure {
+    //        // Put the code you want to measure the time of here.
+    //        let data = try! BaseX.decodeALT(largeTestString, as: .base16Hex)
+    //        XCTAssertEqual(BaseX.encodeALT(data, into: .base16Hex), largeTestString)
+    //    }
+    //}
     
 }
