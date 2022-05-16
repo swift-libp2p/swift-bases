@@ -42,10 +42,10 @@ final class Base2Tests: XCTestCase {
     func testBase2EncodingStringExtensions() {
         let testString = "Hello World"
         let encoded = testString.binaryEncoded(using: .utf8, byteSpacing: true)
-        print(encoded)
+        print(encoded ?? "NIL")
         
         let decoded = encoded!.binaryDecodedString
-        print(decoded)
+        print(decoded ?? "NIL")
         
         XCTAssertEqual(testString, decoded)
     }
@@ -53,14 +53,13 @@ final class Base2Tests: XCTestCase {
     func testBase2EncodingDataExtensions() {
         let testData = "Hello World".data(using: .utf8)
         let encoded = testData?.binaryEncoded()
-        print(encoded)
+        print(encoded ?? "NIL")
         
         let decoded = encoded!.binaryDecoded
         print(decoded)
         
         XCTAssertEqual(testData, decoded)
     }
-
 
     static var allTests = [
         ("testBase2", testBase2),
