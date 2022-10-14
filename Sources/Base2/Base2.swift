@@ -36,6 +36,10 @@ public extension String {
         return try? Data(binaryString: self).map { String(UnicodeScalar($0)) }.joined()
         //return self.binaryDecoded.map { String(UnicodeScalar($0)) }.joined()
     }
+    
+    internal static func padByte(_ byte:UInt8) -> String {
+        String(String(String(byte, radix: 2).reversed()).padding(toLength: 8, withPad: "0", startingAt: 0).reversed())
+    }
 }
 
 public extension Data {
@@ -56,7 +60,7 @@ public extension Array where Element == UInt8 {
     /// Array<UInt8>[1].binaryEncoded() -> "00000001"
     func binaryEncoded(byteSpacing:Bool = false) -> String {
         self.reduce("") { (accumulator, byte) -> String in
-            return accumulator + (accumulator.isEmpty || !byteSpacing ? "" : " ") + String(String(byte, radix: 2).reversed()).padding(toLength: 8, withPad: "0", startingAt: 0).reversed()
+            return accumulator + ((accumulator.isEmpty || !byteSpacing) ? "" : " ") + String.padByte(byte)
         }
     }
     

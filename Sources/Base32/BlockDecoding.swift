@@ -125,29 +125,65 @@ private func bytesFromQuintets(_ first: Quintet, _ second: Quintet) throws -> (B
 
 // MARK: -
 
+//private func firstByte(firstQuintet: Quintet, secondQuintet: Quintet) -> Byte {
+//    return ((firstQuintet & 0b11111) << 3)
+//        | ((secondQuintet & 0b11100) >> 2)
+//}
+//
+//private func secondByte(secondQuintet: Quintet, thirdQuintet: Quintet, fourthQuintet: Quintet) -> Byte {
+//    return ((secondQuintet & 0b00011) << 6)
+//        | ((thirdQuintet & 0b11111) << 1)
+//        | ((fourthQuintet & 0b10000) >> 4)
+//}
+//
+//private func thirdByte(fourthQuintet: Quintet, fifthQuintet: Quintet) -> Byte {
+//    return ((fourthQuintet & 0b01111) << 4)
+//        | ((fifthQuintet & 0b11110) >> 1)
+//}
+//
+//private func fourthByte(fifthQuintet: Quintet, sixthQuintet: Quintet, seventhQuintet: Quintet) -> Byte {
+//    return ((fifthQuintet & 0b00001) << 7)
+//        | ((sixthQuintet & 0b11111) << 2)
+//        | ((seventhQuintet & 0b11000) >> 3)
+//}
+//
+//private func fifthByte(seventhQuintet: Quintet, eighthQuintet: Quintet) -> Byte {
+//    return ((seventhQuintet & 0b00111) << 5)
+//        | (eighthQuintet & 0b11111)
+//}
+
 private func firstByte(firstQuintet: Quintet, secondQuintet: Quintet) -> Byte {
-    return ((firstQuintet & 0b11111) << 3)
-        | ((secondQuintet & 0b11100) >> 2)
+    return leftShift(  firstQuintet, mask: 0b11111, amount: 3)
+         | rightShift(secondQuintet, mask: 0b11100, amount: 2)
 }
 
 private func secondByte(secondQuintet: Quintet, thirdQuintet: Quintet, fourthQuintet: Quintet) -> Byte {
-    return ((secondQuintet & 0b00011) << 6)
-        | ((thirdQuintet & 0b11111) << 1)
-        | ((fourthQuintet & 0b10000) >> 4)
+    return leftShift( secondQuintet, mask: 0b00011, amount: 6)
+         | leftShift(  thirdQuintet, mask: 0b11111, amount: 1)
+         | rightShift(fourthQuintet, mask: 0b10000, amount: 4)
 }
 
 private func thirdByte(fourthQuintet: Quintet, fifthQuintet: Quintet) -> Byte {
-    return ((fourthQuintet & 0b01111) << 4)
-        | ((fifthQuintet & 0b11110) >> 1)
+    return leftShift(fourthQuintet, mask:0b01111, amount: 4)
+         | rightShift(fifthQuintet, mask:0b11110, amount: 1)
 }
 
 private func fourthByte(fifthQuintet: Quintet, sixthQuintet: Quintet, seventhQuintet: Quintet) -> Byte {
-    return ((fifthQuintet & 0b00001) << 7)
-        | ((sixthQuintet & 0b11111) << 2)
-        | ((seventhQuintet & 0b11000) >> 3)
+    return leftShift(   fifthQuintet, mask: 0b00001, amount: 7)
+         | leftShift(   sixthQuintet, mask: 0b11111, amount: 2)
+         | rightShift(seventhQuintet, mask: 0b11000, amount: 3)
 }
 
 private func fifthByte(seventhQuintet: Quintet, eighthQuintet: Quintet) -> Byte {
-    return ((seventhQuintet & 0b00111) << 5)
-        | (eighthQuintet & 0b11111)
+    return leftShift(seventhQuintet, mask: 0b00111, amount: 5)
+         | leftShift( eighthQuintet, mask: 0b11111, amount: 0)
+}
+
+
+private func leftShift(_ quintet:Quintet, mask:Byte, amount:Int) -> Byte {
+    return (quintet & mask) << amount
+}
+
+private func rightShift(_ quintet:Quintet, mask:Byte, amount:Int) -> Byte {
+    return (quintet & mask) >> amount
 }

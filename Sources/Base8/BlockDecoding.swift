@@ -85,20 +85,28 @@ private func bytesFromQuintets(_ first: Quintet, _ second: Quintet, _ third: Qui
 // MARK: -
 
 private func firstByte(firstQuintet: Quintet, secondQuintet: Quintet, thirdQuintet: Quintet) -> Byte {
-    return ((firstQuintet & 0b111) << 5)
-        | ((secondQuintet & 0b111) << 2)
-        |  ((thirdQuintet & 0b110) >> 1)
+    return leftShift( firstQuintet, mask: 0b111, amount: 5)
+         | leftShift(secondQuintet, mask: 0b111, amount: 2)
+         | rightShift(thirdQuintet, mask: 0b110, amount: 1)
 }
 
 private func secondByte(thirdQuintet: Quintet, fourthQuintet: Quintet, fifthQuintet: Quintet, sixthQuintent: Quintet) -> Byte {
-    return ((thirdQuintet & 0b001) << 7)
-        | ((fourthQuintet & 0b111) << 4)
-        |  ((fifthQuintet & 0b111) << 1)
-        | ((sixthQuintent & 0b100) >> 2)
+    return leftShift(  thirdQuintet, mask: 0b001, amount: 7)
+         | leftShift( fourthQuintet, mask: 0b111, amount: 4)
+         | leftShift(  fifthQuintet, mask: 0b111, amount: 1)
+         | rightShift(sixthQuintent, mask: 0b100, amount: 2)
 }
 
 private func thirdByte(sixthQuintet: Quintet, seventhQuintet: Quintet, eighthQuintet: Quintet) -> Byte {
-    return  ((sixthQuintet & 0b011) << 6)
-        | ((seventhQuintet & 0b111) << 3)
-        |  ((eighthQuintet & 0b111))
+    return leftShift(  sixthQuintet, mask: 0b011, amount: 6)
+         | leftShift(seventhQuintet, mask: 0b111, amount: 3)
+         | rightShift(eighthQuintet, mask: 0b111, amount: 0)
+}
+
+private func leftShift(_ quintet:Quintet, mask:Byte, amount:Int) -> Byte {
+    return (quintet & mask) << amount
+}
+
+private func rightShift(_ quintet:Quintet, mask:Byte, amount:Int) -> Byte {
+    return (quintet & mask) >> amount
 }
