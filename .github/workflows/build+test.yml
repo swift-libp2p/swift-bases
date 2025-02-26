@@ -2,7 +2,7 @@ name: Build & Test
 
 on:
   schedule:
-        - cron: "49 2 * * 1"
+    - cron: "49 2 * * 1"
   workflow_dispatch:
 
 jobs:
