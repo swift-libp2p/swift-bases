@@ -5,3 +5,4 @@
 .gitignore
 .swift-format
 .licenseignore
+.license_header_template
