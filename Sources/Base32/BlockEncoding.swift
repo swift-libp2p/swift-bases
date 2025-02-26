@@ -1,3 +1,17 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the swift-libp2p open source project
+//
+// Copyright (c) 2022-2025 swift-libp2p project authors
+// Licensed under MIT
+//
+// See LICENSE for license information
+// See CONTRIBUTORS for the list of swift-libp2p project authors
+//
+// SPDX-License-Identifier: MIT
+//
+//===----------------------------------------------------------------------===//
+
 //
 //  BlockEncoding.swift
 //  Bases
@@ -23,10 +37,12 @@
 //  SOFTWARE.
 //
 
-internal typealias EncodedBlock = (EncodedChar, EncodedChar, EncodedChar, EncodedChar, EncodedChar,
-    EncodedChar, EncodedChar, EncodedChar)
+internal typealias EncodedBlock = (
+    EncodedChar, EncodedChar, EncodedChar, EncodedChar, EncodedChar,
+    EncodedChar, EncodedChar, EncodedChar
+)
 
-internal func encodeBlock(bytes: UnsafeRawBufferPointer, using alphabet:Alphabet) -> EncodedBlock {
+internal func encodeBlock(bytes: UnsafeRawBufferPointer, using alphabet: Alphabet) -> EncodedBlock {
     switch bytes.count {
     case 1:
         return encodeBlock(bytes[0], using: alphabet)
@@ -43,7 +59,8 @@ internal func encodeBlock(bytes: UnsafeRawBufferPointer, using alphabet:Alphabet
     }
 }
 
-private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, _ b3: Byte, _ b4: Byte, using a:Alphabet) -> EncodedBlock {
+private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, _ b3: Byte, _ b4: Byte, using a: Alphabet) -> EncodedBlock
+{
     let q = quintetsFromBytes(b0, b1, b2, b3, b4)
     let c0 = a.character(encoding: q.0)
     let c1 = a.character(encoding: q.1)
@@ -56,7 +73,7 @@ private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, _ b3: Byte, _ b4: B
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
 
-private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, _ b3: Byte, using a:Alphabet) -> EncodedBlock {
+private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, _ b3: Byte, using a: Alphabet) -> EncodedBlock {
     let q = quintetsFromBytes(b0, b1, b2, b3)
     let c0 = a.character(encoding: q.0)
     let c1 = a.character(encoding: q.1)
@@ -69,7 +86,7 @@ private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, _ b3: Byte, using a
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
 
-private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, using a:Alphabet) -> EncodedBlock {
+private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, using a: Alphabet) -> EncodedBlock {
     let q = quintetsFromBytes(b0, b1, b2)
     let c0 = a.character(encoding: q.0)
     let c1 = a.character(encoding: q.1)
@@ -82,7 +99,7 @@ private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, using a:Alphabet) -
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
 
-private func encodeBlock(_ b0: Byte, _ b1: Byte, using a:Alphabet) -> EncodedBlock {
+private func encodeBlock(_ b0: Byte, _ b1: Byte, using a: Alphabet) -> EncodedBlock {
     let q = quintetsFromBytes(b0, b1)
     let c0 = a.character(encoding: q.0)
     let c1 = a.character(encoding: q.1)
@@ -95,7 +112,7 @@ private func encodeBlock(_ b0: Byte, _ b1: Byte, using a:Alphabet) -> EncodedBlo
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
 
-private func encodeBlock(_ b0: Byte, using a:Alphabet) -> EncodedBlock {
+private func encodeBlock(_ b0: Byte, using a: Alphabet) -> EncodedBlock {
     let q = quintetsFromBytes(b0)
     let c0 = a.character(encoding: q.0)
     let c1 = a.character(encoding: q.1)

@@ -1,3 +1,17 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the swift-libp2p open source project
+//
+// Copyright (c) 2022-2025 swift-libp2p project authors
+// Licensed under MIT
+//
+// See LICENSE for license information
+// See CONTRIBUTORS for the list of swift-libp2p project authors
+//
+// SPDX-License-Identifier: MIT
+//
+//===----------------------------------------------------------------------===//
+
 //
 //  Base32.swift
 //  Bases
@@ -22,7 +36,6 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //  SOFTWARE.
 //
-//  Modified by Brandon Toms on 5/1/2022
 
 import Foundation
 
@@ -32,15 +45,19 @@ public enum Base32 {
     /// The size of a block after encoding, measured in bytes.
     private static let encodedBlockSize = 8
 
-    public static func encode(_ str:String, variant:Variant = .standard, options:Base32Options...) -> String {
+    public static func encode(_ str: String, variant: Variant = .standard, options: Base32Options...) -> String {
         //guard let d = str.data(using: .ascii) else { return nil }
-        return self.encode(str.data(using: .ascii)!, variant: variant, options: options)
+        self.encode(str.data(using: .ascii)!, variant: variant, options: options)
     }
-    public static func encode(_ data: Data, variant:Variant = .standard, options:Base32Options...) -> String {
-        return encode(data, variant: variant, options: options)
+    public static func encode(_ data: Data, variant: Variant = .standard, options: Base32Options...) -> String {
+        encode(data, variant: variant, options: options)
     }
-    
-    public static func encode(_ d: Data, variant:Variant = .standard, options:[Base32Options] = [.letterCase(.upper), .pad(true), .nullChar(.encode)]) -> String {
+
+    public static func encode(
+        _ d: Data,
+        variant: Variant = .standard,
+        options: [Base32Options] = [.letterCase(.upper), .pad(true), .nullChar(.encode)]
+    ) -> String {
         let data = d.apply(options)
         let unencodedByteCount = data.count
 
@@ -51,7 +68,7 @@ public enum Base32 {
             var encodedWriteOffset = 0
             for unencodedReadOffset in stride(from: 0, to: unencodedByteCount, by: unencodedBlockSize) {
                 let nextBlockSize = min(unencodedBlockSize, unencodedByteCount - unencodedReadOffset)
-                let nextBlockSlice = unencodedBytes[unencodedReadOffset ..< unencodedReadOffset + nextBlockSize]
+                let nextBlockSlice = unencodedBytes[unencodedReadOffset..<unencodedReadOffset + nextBlockSize]
                 let nextBlockBytes = UnsafeRawBufferPointer(rebasing: nextBlockSlice)
 
                 let nextChars = encodeBlock(bytes: nextBlockBytes, using: variant.alphabet)
@@ -69,13 +86,15 @@ public enum Base32 {
         }
 
         // The Data instance takes ownership of the allocated bytes and will handle deallocation.
-        let encodedData = Data(bytesNoCopy: encodedBytes,
-                               count: encodedByteCount,
-                               deallocator: .free)
+        let encodedData = Data(
+            bytesNoCopy: encodedBytes,
+            count: encodedByteCount,
+            deallocator: .free
+        )
         guard let encodedString = String(data: encodedData, encoding: .ascii) else {
             fatalError("Internal Error: Encoded data could not be encoded as ASCII (\(encodedData))")
         }
-        
+
         //print("Before Options: \(encodedString)")
         //print("After Options: \(encodedString.apply(options))")
         return encodedString.apply(options)
@@ -88,22 +107,28 @@ public enum Base32 {
         return blockCount * encodedBlockSize
     }
 
-    public static func decodeToString(_ string:String, variant:Variant = .standard, using strEncoding:String.Encoding = .ascii) throws -> String {
+    public static func decodeToString(
+        _ string: String,
+        variant: Variant = .standard,
+        using strEncoding: String.Encoding = .ascii
+    ) throws -> String {
         guard let str = String(data: try self.decode(string, variant: variant), encoding: strEncoding) else {
             throw Base32.Error.nonAsciiCompliant
         }
         return str
     }
-    
-    public static func decode(_ string: String, variant:Variant = .standard) throws -> Data {
+
+    public static func decode(_ string: String, variant: Variant = .standard) throws -> Data {
         guard let encodedData = string.data(using: String.Encoding.ascii) else {
             throw Error.nonAlphabetCharacter
         }
         let encodedByteCount = nonPaddingByteCount(encodedData: encodedData)
 
         let decodedByteCount = try byteCount(decoding: encodedByteCount)
-        let decodedBytes = UnsafeMutableRawBufferPointer.allocate(byteCount: decodedByteCount,
-                                                                  alignment: MemoryLayout<Byte>.alignment)
+        let decodedBytes = UnsafeMutableRawBufferPointer.allocate(
+            byteCount: decodedByteCount,
+            alignment: MemoryLayout<Byte>.alignment
+        )
 
         try encodedData.withUnsafeBytes { rawBuffer in
             let encodedChars: UnsafePointer<EncodedChar> = rawBuffer.bindMemory(to: EncodedChar.self).baseAddress!
@@ -121,19 +146,45 @@ public enum Base32 {
                     decodedBytes[decodedWriteOffset + 0] = bytes.0
                     decodedBytes[decodedWriteOffset + 1] = bytes.1
                 case 5:
-                    let bytes = try decodeBlock(chars[0], chars[1], chars[2], chars[3], chars[4], using: variant.alphabet)
+                    let bytes = try decodeBlock(
+                        chars[0],
+                        chars[1],
+                        chars[2],
+                        chars[3],
+                        chars[4],
+                        using: variant.alphabet
+                    )
                     decodedBytes[decodedWriteOffset + 0] = bytes.0
                     decodedBytes[decodedWriteOffset + 1] = bytes.1
                     decodedBytes[decodedWriteOffset + 2] = bytes.2
                 case 7:
-                    let bytes = try decodeBlock(chars[0], chars[1], chars[2], chars[3], chars[4], chars[5], chars[6], using: variant.alphabet)
+                    let bytes = try decodeBlock(
+                        chars[0],
+                        chars[1],
+                        chars[2],
+                        chars[3],
+                        chars[4],
+                        chars[5],
+                        chars[6],
+                        using: variant.alphabet
+                    )
                     decodedBytes[decodedWriteOffset + 0] = bytes.0
                     decodedBytes[decodedWriteOffset + 1] = bytes.1
                     decodedBytes[decodedWriteOffset + 2] = bytes.2
                     decodedBytes[decodedWriteOffset + 3] = bytes.3
                 case 8:
                     let bytes =
-                        try decodeBlock(chars[0], chars[1], chars[2], chars[3], chars[4], chars[5], chars[6], chars[7], using: variant.alphabet)
+                        try decodeBlock(
+                            chars[0],
+                            chars[1],
+                            chars[2],
+                            chars[3],
+                            chars[4],
+                            chars[5],
+                            chars[6],
+                            chars[7],
+                            using: variant.alphabet
+                        )
                     decodedBytes[decodedWriteOffset + 0] = bytes.0
                     decodedBytes[decodedWriteOffset + 1] = bytes.1
                     decodedBytes[decodedWriteOffset + 2] = bytes.2
@@ -151,7 +202,7 @@ public enum Base32 {
         return Data(bytesNoCopy: decodedBytes.baseAddress!, count: decodedByteCount, deallocator: .free)
     }
 
-    private static func nonPaddingByteCount(encodedData: Data, variant:Variant = .standard) -> Int {
+    private static func nonPaddingByteCount(encodedData: Data, variant: Variant = .standard) -> Int {
         let paddingCharacter = variant.alphabet.paddingCharacter
         if let lastNonPaddingCharacterIndex = encodedData.lastIndex(where: { $0 != paddingCharacter }) {
             return lastNonPaddingCharacterIndex + 1
