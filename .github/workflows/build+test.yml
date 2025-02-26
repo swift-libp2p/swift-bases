@@ -1,14 +1,8 @@
 name: Build & Test
 
 on:
-  push:
-    paths-ignore:
-      - 'README.md'
-    branches: [main]
-  pull_request:
-    paths-ignore:
-      - 'README.md'
-    branches: [main]
+  schedule:
+        - cron: "49 2 * * 1"
   workflow_dispatch:
 
 jobs:
