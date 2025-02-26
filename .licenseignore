@@ -1,5 +1,7 @@
 .github/workflows/configs/.flake8
 **/*.yml
-CODEOWNERS
-LICENSE.txt
-README.md
+**/*.md
+**/*.txt
+.gitignore
+.swift-format
+.licenseignore
