@@ -75,10 +75,4 @@ final class Base2Tests: XCTestCase {
 
         XCTAssertEqual(testData, decoded)
     }
-
-    static var allTests = [
-        ("testBase2", testBase2),
-        ("testBase2EncodingStringExtensions", testBase2EncodingStringExtensions),
-        ("testBase2EncodingDataExtensions", testBase2EncodingDataExtensions),
-    ]
 }
