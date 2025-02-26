@@ -1,3 +1,17 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the swift-libp2p open source project
+//
+// Copyright (c) 2022-2025 swift-libp2p project authors
+// Licensed under MIT
+//
+// See LICENSE for license information
+// See CONTRIBUTORS for the list of swift-libp2p project authors
+//
+// SPDX-License-Identifier: MIT
+//
+//===----------------------------------------------------------------------===//
+
 //
 //  Quintets.swift
 //  Bases
@@ -26,8 +40,12 @@
 typealias Byte = UInt8
 typealias Quintet = UInt8
 
-func quintetsFromBytes(_ firstByte: Byte, _ secondByte: Byte, _ thirdByte: Byte) -> (Quintet, Quintet, Quintet, Quintet, Quintet, Quintet, Quintet, Quintet) {
-    return (
+func quintetsFromBytes(
+    _ firstByte: Byte,
+    _ secondByte: Byte,
+    _ thirdByte: Byte
+) -> (Quintet, Quintet, Quintet, Quintet, Quintet, Quintet, Quintet, Quintet) {
+    (
         firstQuintet(firstByte: firstByte),
         secondQuintet(firstByte: firstByte),
         thirdQuintet(firstByte: firstByte, secondByte: secondByte),
@@ -39,8 +57,9 @@ func quintetsFromBytes(_ firstByte: Byte, _ secondByte: Byte, _ thirdByte: Byte)
     )
 }
 
-func quintetsFromBytes(_ firstByte: Byte, _ secondByte: Byte) -> (Quintet, Quintet, Quintet, Quintet, Quintet, Quintet) {
-    return (
+func quintetsFromBytes(_ firstByte: Byte, _ secondByte: Byte) -> (Quintet, Quintet, Quintet, Quintet, Quintet, Quintet)
+{
+    (
         firstQuintet(firstByte: firstByte),
         secondQuintet(firstByte: firstByte),
         thirdQuintet(firstByte: firstByte, secondByte: secondByte),
@@ -51,7 +70,7 @@ func quintetsFromBytes(_ firstByte: Byte, _ secondByte: Byte) -> (Quintet, Quint
 }
 
 func quintetsFromBytes(_ firstByte: Byte) -> (Quintet, Quintet, Quintet) {
-    return (
+    (
         firstQuintet(firstByte: firstByte),
         secondQuintet(firstByte: firstByte),
         thirdQuintet(firstByte: firstByte, secondByte: 0)
@@ -61,37 +80,37 @@ func quintetsFromBytes(_ firstByte: Byte) -> (Quintet, Quintet, Quintet) {
 // MARK: - Private
 
 private func firstQuintet(firstByte: Byte) -> Quintet {
-    return ((firstByte & 0b11100000) >> 5)
+    ((firstByte & 0b11100000) >> 5)
 }
 
 private func secondQuintet(firstByte: Byte) -> Quintet {
-    return ((firstByte & 0b00011100) >> 2)
+    ((firstByte & 0b00011100) >> 2)
 }
 
 private func thirdQuintet(firstByte: Byte, secondByte: Byte) -> Quintet {
-    return ((firstByte & 0b00000011) << 1)
+    ((firstByte & 0b00000011) << 1)
         | ((secondByte & 0b10000000) >> 7)
 }
 
 private func fourthQuintet(secondByte: Byte) -> Quintet {
-    return ((secondByte & 0b01110000) >> 4)
+    ((secondByte & 0b01110000) >> 4)
 }
 
 private func fifthQuintet(secondByte: Byte) -> Quintet {
-    return ((secondByte & 0b00001110) >> 1)
+    ((secondByte & 0b00001110) >> 1)
 }
 
 private func sixthQuintet(secondByte: Byte, thirdByte: Byte) -> Quintet {
-    return ((secondByte & 0b00000001) << 2)
-          | ((thirdByte & 0b11000000) >> 6)
+    ((secondByte & 0b00000001) << 2)
+        | ((thirdByte & 0b11000000) >> 6)
 }
 
 private func seventhQuintet(thirdByte: Byte) -> Quintet {
-    return ((thirdByte & 0b00111000) >> 3)
+    ((thirdByte & 0b00111000) >> 3)
 }
 
 private func eighthQuintet(thirdByte: Byte) -> Quintet {
-    return (thirdByte & 0b00000111)
+    (thirdByte & 0b00000111)
 }
 
 //private func secondQuintet(firstByte: Byte, secondByte: Byte) -> Quintet {

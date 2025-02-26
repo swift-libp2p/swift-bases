@@ -1,39 +1,46 @@
+//===----------------------------------------------------------------------===//
 //
-//  BaseX.swift
+// This source file is part of the swift-libp2p open source project
 //
+// Copyright (c) 2022-2025 swift-libp2p project authors
+// Licensed under MIT
 //
-//  Modified by Brandon Toms on 5/1/22.
+// See LICENSE for license information
+// See CONTRIBUTORS for the list of swift-libp2p project authors
 //
+// SPDX-License-Identifier: MIT
+//
+//===----------------------------------------------------------------------===//
 
 import Foundation
 
-fileprivate func buildAlphabetBase(_ alphabet: String) -> AlphabetBase {
+private func buildAlphabetBase(_ alphabet: String) -> AlphabetBase {
     let characters = Array(alphabet)
-    let indexed:[Character] = characters.map {$0}
-    var tmpMap = [Character:UInt]()
-    var i:UInt = 0
+    let indexed: [Character] = characters.map { $0 }
+    var tmpMap = [Character: UInt]()
+    var i: UInt = 0
     for c in characters {
         tmpMap[c] = i
-        i+=1
+        i += 1
     }
-    
+
     let finalMap = tmpMap
     return AlphabetBase(map: finalMap, indexed: indexed, base: UInt(characters.count), leader: characters.first!)
 }
 
-fileprivate struct AlphabetBase {
-    let map:[Character:UInt]
-    let indexed:[Character]
-    let base:UInt
-    let leader:Character
+private struct AlphabetBase {
+    let map: [Character: UInt]
+    let indexed: [Character]
+    let base: UInt
+    let leader: Character
 }
 
 public enum BaseX {
-    public enum BaseXError:Error {
+    public enum BaseXError: Error {
         case invalidStringEncoding
         case invalidCharacter
     }
-    
+
     public enum Alphabets: Equatable {
         case base10Decimal
         case base16Hex
@@ -43,8 +50,8 @@ public enum BaseX {
         case base58BTC
         case base58Flickr
         case custom(String)
-        
-        fileprivate var alphabet:AlphabetBase {
+
+        fileprivate var alphabet: AlphabetBase {
             switch self {
             case .base10Decimal:
                 return buildAlphabetBase("0123456789")
@@ -64,8 +71,8 @@ public enum BaseX {
                 return buildAlphabetBase(alphabet)
             }
         }
-        
-        fileprivate var charsPerBit:Int {
+
+        fileprivate var charsPerBit: Int {
             switch self {
             case .base16Hex: return 2
             case .base16HexUpper: return 2
@@ -73,20 +80,24 @@ public enum BaseX {
             }
         }
     }
-    
-    static func encodeALT(_ str:String, into base:BaseX.Alphabets, using encoding: String.Encoding = .utf8) throws -> String {
+
+    static func encodeALT(
+        _ str: String,
+        into base: BaseX.Alphabets,
+        using encoding: String.Encoding = .utf8
+    ) throws -> String {
         guard let data = str.data(using: encoding) else { throw BaseX.BaseXError.invalidStringEncoding }
         return BaseX.encodeALT(data, into: base)
     }
-    
-    static func encodeALT(_ data:Data, into base:BaseX.Alphabets) -> String {
+
+    static func encodeALT(_ data: Data, into base: BaseX.Alphabets) -> String {
         let alpha = base.alphabet
         if data.count == 0 {
             return ""
         }
         let bytes = [UInt8](data)
-        
-        var digits:[UInt] = [0]
+
+        var digits: [UInt] = [0]
         for byte in bytes {
             var carry = UInt(byte)
             for j in 0..<digits.count {
@@ -94,25 +105,25 @@ public enum BaseX {
                 digits[j] = carry % alpha.base
                 carry = (carry / alpha.base) | 0
             }
-            while (carry > 0) {
+            while carry > 0 {
                 digits.append(carry % alpha.base)
                 carry = (carry / alpha.base) | 0
             }
         }
-        
+
         /// If our data is a bunch of zeros, then remove the initial zero from our digits array
         if digits == [0] { digits = [] }
-        
+
         var output: String = ""
         // deal with leading zeros
         for k in 0..<data.count {
-            if (bytes[k] == UInt8(0)) {
+            if bytes[k] == UInt8(0) {
                 output.append(contentsOf: Array(repeating: alpha.leader, count: base.charsPerBit))
             } else {
                 break
             }
         }
-        
+
         //Ensure we don't drop base16 leading zero
         switch base {
         case .base16Hex, .base16HexUpper:
@@ -122,46 +133,54 @@ public enum BaseX {
         default:
             break
         }
-        
+
         // convert digits to a string
         for d in digits.reversed() {
             output.append(alpha.indexed[Int(d)])
         }
-        
+
         let final = output
         return final
     }
-    
-    public static func encode(_ str:String, into base:BaseX.Alphabets, using encoding: String.Encoding = .utf8) throws -> String {
+
+    public static func encode(
+        _ str: String,
+        into base: BaseX.Alphabets,
+        using encoding: String.Encoding = .utf8
+    ) throws -> String {
         guard let data = str.data(using: encoding) else { throw BaseX.BaseXError.invalidStringEncoding }
         return BaseX.encode(data, into: base)
     }
-    
-    public static func encode(_ data:Data, into base:BaseX.Alphabets) -> String {
+
+    public static func encode(_ data: Data, into base: BaseX.Alphabets) -> String {
         guard base == .base16Hex || base == .base16HexUpper else { return BaseX.encodeALT(data, into: base) }
         if base == .base16Hex {
-            return Array<UInt8>(data).toHexString()
+            return [UInt8](data).toHexString()
         } else {
-            return Array<UInt8>(data).toHexString().uppercased()
+            return [UInt8](data).toHexString().uppercased()
         }
     }
-    
-    static func decodeALT(_ str:String, as base:BaseX.Alphabets, using encoding:String.Encoding = .utf8) throws -> String {
+
+    static func decodeALT(
+        _ str: String,
+        as base: BaseX.Alphabets,
+        using encoding: String.Encoding = .utf8
+    ) throws -> String {
         guard let res = String(data: try BaseX.decodeALT(str, as: base), encoding: encoding) else {
             throw BaseX.BaseXError.invalidStringEncoding
         }
         return res
     }
-    
-    static func decodeALT(_ str:String, as base:BaseX.Alphabets) throws -> Data  {
+
+    static func decodeALT(_ str: String, as base: BaseX.Alphabets) throws -> Data {
         if str.isEmpty { return Data() }
-        
+
         let alpha = base.alphabet
-        
-        var bytes:[UInt8] = [0]
+
+        var bytes: [UInt8] = [0]
         let characters = Array(str)
         for c in characters {
-            if (alpha.map[c] == nil) { throw BaseX.BaseXError.invalidCharacter }
+            if alpha.map[c] == nil { throw BaseX.BaseXError.invalidCharacter }
             var carry = alpha.map[c]!
 
             for j in 0..<bytes.count {
@@ -169,66 +188,73 @@ public enum BaseX {
                 bytes[j] = UInt8(carry & 0xff)
                 carry >>= 8
             }
-            
-            while (carry > 0) {
+
+            while carry > 0 {
                 bytes.append(UInt8(carry & 0xff))
                 carry >>= 8
             }
         }
-        
+
         // deal with leading zeros
         let leadingZero = Array(repeating: alpha.leader, count: base.charsPerBit)[0...]
         let charArray = Array(str)
         for k in stride(from: 0, to: characters.count, by: base.charsPerBit) {
-            guard str.count > k + base.charsPerBit else { break } //prevent index out of bounds error
-            if charArray[k..<(k+base.charsPerBit)] == leadingZero {
+            guard str.count > k + base.charsPerBit else { break }  //prevent index out of bounds error
+            if charArray[k..<(k + base.charsPerBit)] == leadingZero {
                 bytes.append(0)
             } else {
                 break
             }
         }
-        
+
         return Data(bytes.reversed())
     }
-    
-    public static func decode(_ str:String, as base:BaseX.Alphabets, using encoding:String.Encoding = .utf8) throws -> String {
+
+    public static func decode(
+        _ str: String,
+        as base: BaseX.Alphabets,
+        using encoding: String.Encoding = .utf8
+    ) throws -> String {
         guard let res = String(data: try BaseX.decode(str, as: base), encoding: encoding) else {
             throw BaseX.BaseXError.invalidStringEncoding
         }
         return res
     }
-    
-    public static func decode(_ str:String, as base:BaseX.Alphabets) throws -> Data  {
+
+    public static func decode(_ str: String, as base: BaseX.Alphabets) throws -> Data {
         guard base == .base16Hex || base == .base16HexUpper else { return try BaseX.decodeALT(str, as: base) }
-        return Data(Array<UInt8>(hex: str))
+        return Data([UInt8](hex: str))
     }
-    
+
 }
 
-public extension Data {
+extension Data {
     /// try Data(decoding: "429328951066508984658627669258025763026247056774804621697313" as: .base10Decimal) => Data
-    init(decoding encodedString:String, as base:BaseX.Alphabets) throws {
+    public init(decoding encodedString: String, as base: BaseX.Alphabets) throws {
         self = try BaseX.decode(encodedString, as: base)
     }
-    
-//    var asHexString:String {
-//        self.map { String($0, radix: 16) }.joined()
-//    }
-    
-//    func asString(base:BaseX.Alphabets) -> String {
-//        return BaseX.encode(self, into: base)
-//    }
+
+    //    var asHexString:String {
+    //        self.map { String($0, radix: 16) }.joined()
+    //    }
+
+    //    func asString(base:BaseX.Alphabets) -> String {
+    //        return BaseX.encode(self, into: base)
+    //    }
 }
 
-public extension String {
+extension String {
     /// try String(decoding: "429328951066508984658627669258025763026247056774804621697313", as: .base10Decimal, using: .utf8) => "Decentralize everything!!"
-    init(decoding encodedString:String, as base:BaseX.Alphabets, using stringEncoding:String.Encoding = .utf8) throws {
+    public init(
+        decoding encodedString: String,
+        as base: BaseX.Alphabets,
+        using stringEncoding: String.Encoding = .utf8
+    ) throws {
         let d = try Data(decoding: encodedString, as: base)
         guard let str = String(data: d, encoding: stringEncoding) else { throw BaseX.BaseXError.invalidStringEncoding }
         self = str
     }
 }
-
 
 //CryptoSwift's hex decoding implementation. Way faster than our current implementation.
 // It's nice to use the same library / implementation for multiple bases but we should try and optimize for base16 (hex) cause it's so often used...
@@ -250,12 +276,12 @@ public extension String {
 
 extension Array {
     init(reserveCapacity: Int) {
-        self = Array<Element>()
+        self = [Element]()
         self.reserveCapacity(reserveCapacity)
     }
 
     var slice: ArraySlice<Element> {
-        self[self.startIndex ..< self.endIndex]
+        self[self.startIndex..<self.endIndex]
     }
 }
 
@@ -308,7 +334,6 @@ extension Array where Element == UInt8 {
         }
     }
 }
-
 
 /// Another Implementation (not sure if it's faster, same or slower, just another implementation
 //

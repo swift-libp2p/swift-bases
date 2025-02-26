@@ -1,5 +1,17 @@
 // swift-tools-version:5.5
-// The swift-tools-version declares the minimum version of Swift required to build this package.
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the swift-libp2p open source project
+//
+// Copyright (c) 2022-2025 swift-libp2p project authors
+// Licensed under MIT
+//
+// See LICENSE for license information
+// See CONTRIBUTORS for the list of swift-libp2p project authors
+//
+// SPDX-License-Identifier: MIT
+//
+//===----------------------------------------------------------------------===//
 
 import PackageDescription
 
@@ -25,19 +37,23 @@ let package = Package(
         .target(name: "BaseX", dependencies: []),
         .target(name: "Base32", dependencies: []),
         .target(name: "Base64", dependencies: []),
-        
+
         .testTarget(
             name: "Base2Tests",
-            dependencies: ["Base2"]),
+            dependencies: ["Base2"]
+        ),
         .testTarget(
             name: "Base8Tests",
-            dependencies: ["Base8"]),
+            dependencies: ["Base8"]
+        ),
         .testTarget(
             name: "Base32Tests",
-            dependencies: ["Base32"]),
+            dependencies: ["Base32"]
+        ),
         .testTarget(
             name: "BaseXTests",
-            dependencies: ["BaseX"]),
-        
+            dependencies: ["BaseX"]
+        ),
+
     ]
 )

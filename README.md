@@ -27,7 +27,7 @@ This library was designed to support the [Multibase](https://github.com/swift-li
 - I wouldn't use this in production until you've vetted it yourself! 
 
 #### For more details see 
-- [Multiformats / Mulitbase Spec](https://github.com/multiformats/multibase/blob/master/README.md)
+- [Multiformats / Mulitbase Spec](https://github.com/multiformats/multibase)
 
 
 ## Install

@@ -1,3 +1,17 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the swift-libp2p open source project
+//
+// Copyright (c) 2022-2025 swift-libp2p project authors
+// Licensed under MIT
+//
+// See LICENSE for license information
+// See CONTRIBUTORS for the list of swift-libp2p project authors
+//
+// SPDX-License-Identifier: MIT
+//
+//===----------------------------------------------------------------------===//
+
 //
 //  Alphabet.swift
 //  Bases
@@ -22,16 +36,15 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //  SOFTWARE.
 //
-//  Modified by Brandon Toms on 5/1/2022
 
 import Foundation
 
 internal typealias EncodedChar = UInt8
 
 protocol Alphabet {
-    static var paddingCharacter:EncodedChar { get }
-    var paddingCharacter:EncodedChar { get }
-    
+    static var paddingCharacter: EncodedChar { get }
+    var paddingCharacter: EncodedChar { get }
+
     func character(encoding quintet: Quintet) -> Quintet
     func quintet(decoding char: EncodedChar) throws -> Quintet
 }
@@ -49,8 +62,8 @@ public enum Base32Options {
     case pad(Bool)
     case nullChar(NullCharOpts)
     case letterCase(LetterCase)
-    
-    internal func apply(_ d:Data) -> Data {
+
+    internal func apply(_ d: Data) -> Data {
         switch self {
         case .nullChar(.drop):
             return d.drop(while: { $0 == 0 })
@@ -58,8 +71,8 @@ public enum Base32Options {
             return d
         }
     }
-    
-    internal func apply(_ str:String) -> String {
+
+    internal func apply(_ str: String) -> String {
         switch self {
         case .letterCase(.upper):
             return str.uppercased()
@@ -74,16 +87,16 @@ public enum Base32Options {
 }
 
 extension Data {
-    func apply(_ opts:[Base32Options]) -> Data {
-        return opts.reduce(into: self) { (data, option) in
+    func apply(_ opts: [Base32Options]) -> Data {
+        opts.reduce(into: self) { (data, option) in
             data = option.apply(data)
         }
     }
 }
 
 extension String {
-    func apply(_ opts:[Base32Options]) -> String {
-        return opts.reduce(into: self) { (str, option) in
+    func apply(_ opts: [Base32Options]) -> String {
+        opts.reduce(into: self) { (str, option) in
             str = option.apply(str)
         }
     }
@@ -93,12 +106,12 @@ public enum Variant {
     case standard
     case hex
     case z
-    
-    internal var alphabet:Alphabet {
+
+    internal var alphabet: Alphabet {
         switch self {
         case .standard: return Base32Alphabet()
-        case .hex:  return Base32HexAlphabet()
-        case .z:  return Base32ZAlphabet()
+        case .hex: return Base32HexAlphabet()
+        case .z: return Base32ZAlphabet()
         }
     }
 }
@@ -121,20 +134,23 @@ public enum Variant {
 //       7 H            16 Q            25 Z
 //       8 I            17 R            26 2
 
-struct Base32Alphabet:Alphabet {
+struct Base32Alphabet: Alphabet {
     static let paddingCharacter: EncodedChar = 61
     let paddingCharacter: EncodedChar = 61
-//    private let encodingTable: [EncodedChar] = [
-//        65, 66, 67, 68, 69, 70, 71, 72,
-//        73, 74, 75, 76, 77, 78, 79, 80,
-//        81, 82, 83, 84, 85, 86, 87, 88,
-//        89, 90, 50, 51, 52, 53, 54, 55,
-//    ]
-    private let encodingTable:[EncodedChar] = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","2","3","4","5","6","7"]
-        .map { (c: UnicodeScalar) -> EncodedChar in EncodedChar(c.value) }
+    //    private let encodingTable: [EncodedChar] = [
+    //        65, 66, 67, 68, 69, 70, 71, 72,
+    //        73, 74, 75, 76, 77, 78, 79, 80,
+    //        81, 82, 83, 84, 85, 86, 87, 88,
+    //        89, 90, 50, 51, 52, 53, 54, 55,
+    //    ]
+    private let encodingTable: [EncodedChar] = [
+        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
+        "W", "X", "Y", "Z", "2", "3", "4", "5", "6", "7",
+    ]
+    .map { (c: UnicodeScalar) -> EncodedChar in EncodedChar(c.value) }
 
     func character(encoding quintet: Quintet) -> EncodedChar {
-        return encodingTable[Int(quintet)]
+        encodingTable[Int(quintet)]
     }
 
     func quintet(decoding char: EncodedChar) throws -> Quintet {
@@ -151,7 +167,6 @@ struct Base32Alphabet:Alphabet {
     }
 }
 
-
 //              The The "Extended Hex" Base 32 Alphabet
 //
 //   Value Encoding  Value Encoding  Value Encoding  Value Encoding
@@ -165,23 +180,26 @@ struct Base32Alphabet:Alphabet {
 //       7 7            16 G            25 P
 //       8 8            17 H            26 Q
 
-struct Base32HexAlphabet:Alphabet {
+struct Base32HexAlphabet: Alphabet {
     static let paddingCharacter: EncodedChar = 61
     let paddingCharacter: EncodedChar = 61
-    private let encodingTable:[EncodedChar] = ["0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V"]
-        .map { (c: UnicodeScalar) -> EncodedChar in EncodedChar(c.value) }
+    private let encodingTable: [EncodedChar] = [
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",
+        "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
+    ]
+    .map { (c: UnicodeScalar) -> EncodedChar in EncodedChar(c.value) }
 
     func character(encoding quintet: Quintet) -> EncodedChar {
-        return encodingTable[Int(quintet)]
+        encodingTable[Int(quintet)]
     }
 
     func quintet(decoding char: EncodedChar) throws -> Quintet {
         switch char {
         case 48...57:
             return char - 48
-        case 65...90: //Capital Letters
+        case 65...90:  //Capital Letters
             return char - 55
-        case 97...122: //Lowercased Letters
+        case 97...122:  //Lowercased Letters
             return char - 87
         default:
             throw Base32.Error.nonAlphabetCharacter
@@ -202,19 +220,22 @@ struct Base32HexAlphabet:Alphabet {
 //       7 8            16 o            25 3
 //       8 e            17 t            26 4
 
-struct Base32ZAlphabet:Alphabet {
+struct Base32ZAlphabet: Alphabet {
     static let paddingCharacter: EncodedChar = 61
     let paddingCharacter: EncodedChar = 61
-    private let encodingTable:[EncodedChar] = ["y","b","n","d","r","f","g","8","e","j","k","m","c","p","q","x","o","t","1","u","w","i","s","z","a","3","4","5","h","7","6","9"]
-        .map { (c: UnicodeScalar) -> EncodedChar in EncodedChar(c.value) }
-    
+    private let encodingTable: [EncodedChar] = [
+        "y", "b", "n", "d", "r", "f", "g", "8", "e", "j", "k", "m", "c", "p", "q", "x", "o", "t", "1", "u", "w", "i",
+        "s", "z", "a", "3", "4", "5", "h", "7", "6", "9",
+    ]
+    .map { (c: UnicodeScalar) -> EncodedChar in EncodedChar(c.value) }
+
     func character(encoding quintet: Quintet) -> EncodedChar {
-        return encodingTable[Int(quintet)]
+        encodingTable[Int(quintet)]
     }
 
     func quintet(decoding char: EncodedChar) throws -> Quintet {
         var c = char
-        if char >= 65 && char <= 90 { c = char + 32 } //Map Uppercase Letters to Lowercase range...
+        if char >= 65 && char <= 90 { c = char + 32 }  //Map Uppercase Letters to Lowercase range...
         if let match = encodingTable.firstIndex(of: c) {
             return UInt8(match)
         } else {
