@@ -2,6 +2,7 @@
 **/*.yml
 *.md
 *.txt
+Package.swift
 .gitignore
 .swift-format
 .licenseignore
