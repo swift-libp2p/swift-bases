@@ -1,4 +1,4 @@
-// swift-tools-version:5.5
+// swift-tools-version:5.9
 //===----------------------------------------------------------------------===//
 //
 // This source file is part of the swift-libp2p open source project
