@@ -25,19 +25,23 @@ let package = Package(
         .target(name: "BaseX", dependencies: []),
         .target(name: "Base32", dependencies: []),
         .target(name: "Base64", dependencies: []),
-        
+
         .testTarget(
             name: "Base2Tests",
-            dependencies: ["Base2"]),
+            dependencies: ["Base2"]
+        ),
         .testTarget(
             name: "Base8Tests",
-            dependencies: ["Base8"]),
+            dependencies: ["Base8"]
+        ),
         .testTarget(
             name: "Base32Tests",
-            dependencies: ["Base32"]),
+            dependencies: ["Base32"]
+        ),
         .testTarget(
             name: "BaseXTests",
-            dependencies: ["BaseX"]),
-        
+            dependencies: ["BaseX"]
+        ),
+
     ]
 )
