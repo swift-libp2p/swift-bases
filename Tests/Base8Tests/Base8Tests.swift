@@ -72,12 +72,4 @@ final class Base8Tests: XCTestCase {
         XCTAssertEqual(Base8.encode("yes mani !", options: .pad(true)), "362625631006654133464440102=====")
         XCTAssertEqual(Base8.encode("yes mani !", options: .pad(false)), "362625631006654133464440102")
     }
-
-    static var allTests = [
-        ("testEncode", testEncode),
-        ("testDecode", testDecode),
-        ("testLeadingZero", testLeadingZero),
-        ("testTwoLeadingZeros", testTwoLeadingZeros),
-        ("testEncodeWithOptions", testEncodeWithOptions),
-    ]
 }

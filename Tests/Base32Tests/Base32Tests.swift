@@ -313,20 +313,4 @@ final class Base32Tests: XCTestCase {
         //XCTAssertEqual(Base32.encode("hello world".data(using: .ascii)!, variant: .z), "D1IMOR3F41RMUSJCCG======"                )
         //XCTAssertEqual(Base32.encode("Decentralize everything!!".data(using: .ascii)!, variant: .z), "8HIM6PBEEHP62R39F9II0PBMCLP7IT38D5N6E891")
     }
-
-    static var allTests = [
-        ("testEncodeStandard", testEncodeStandard),
-        ("testDecodeStandard", testDecodeStandard),
-        ("testEncodeStandardLowercaseWithPadding", testEncodeStandardLowercaseWithPadding),
-        ("testEncodeStandardUppercaseWithoutPadding", testEncodeStandardUppercaseWithoutPadding),
-        ("testEncodeStandardLowercaseWithoutPadding", testEncodeStandardLowercaseWithoutPadding),
-
-        ("testEncodeHex", testEncodeHex),
-        ("testDecodeHex", testDecodeHex),
-        ("testEncodeHexLowercaseWithPadding", testEncodeHexLowercaseWithPadding),
-        ("testEncodeHexUppercaseWithoutPadding", testEncodeHexUppercaseWithoutPadding),
-        ("testEncodeHexLowercaseWithoutPadding", testEncodeHexLowercaseWithoutPadding),
-
-        ("testZ", testZ),
-    ]
 }
