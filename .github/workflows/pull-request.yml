@@ -1,3 +1,5 @@
+name: Pull Request
+
 on:
   pull_request:
     types: [opened, reopened, synchronize]
@@ -5,5 +7,5 @@ on:
 
 jobs:
   tests:
-    name: Pull Request
+    name: PR
     uses: swift-libp2p/github-workflows/.github/workflows/pull_request.yml@main
