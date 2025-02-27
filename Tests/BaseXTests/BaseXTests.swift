@@ -256,28 +256,4 @@ final class BaseXTests: XCTestCase {
             "let base58FlickrDecoded:String = try BaseX.decode(\"\(base58FlickrEncoded)\", as: .base58Flickr) // -> \(base58FlickrDecoded)"
         )
     }
-
-    static var allTests = [
-        ("testBase10", testBase10),
-        ("testBase16Lower", testBase16Lower),
-        ("testBase16Upper", testBase16Upper),
-        ("testBase36Lower", testBase36Lower),
-        ("testBase36Upper", testBase36Upper),
-        ("testBase58BTC", testBase58BTC),
-        ("testBase58Flickr", testBase58Flickr),
-        ("testBase10LeadingZero", testBase10LeadingZero),
-        ("testBase16LowerLeadingZero", testBase16LowerLeadingZero),
-        ("testBase16UpperLeadingZero", testBase16UpperLeadingZero),
-        ("testBase36LowerLeadingZero", testBase36LowerLeadingZero),
-        ("testBase36UpperLeadingZero", testBase36UpperLeadingZero),
-        ("testBase58BTCLeadingZero", testBase58BTCLeadingZero),
-        ("testBase58FlickrLeadingZero", testBase58FlickrLeadingZero),
-        ("testBase10TwoLeadingZeros", testBase10TwoLeadingZeros),
-        ("testBase16LowerTwoLeadingZeros", testBase16LowerTwoLeadingZeros),
-        ("testBase16UpperTwoLeadingZeros", testBase16UpperTwoLeadingZeros),
-        ("testBase36LowerTwoLeadingZeros", testBase36LowerTwoLeadingZeros),
-        ("testBase36UpperTwoLeadingZeros", testBase36UpperTwoLeadingZeros),
-        ("testBase58BTCTwoLeadingZeros", testBase58BTCTwoLeadingZeros),
-        ("testBase58FlickrTwoLeadingZeros", testBase58FlickrTwoLeadingZeros),
-    ]
 }
