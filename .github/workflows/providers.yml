@@ -9,4 +9,4 @@ jobs:
     name: Tests
     uses: swift-libp2p/github-workflows/.github/workflows/providers.yml@main
     with:
-      dependents: "swift-libp2p/swift-multibase"
+      dependents: "[\"swift-libp2p/swift-multibase\"]"
