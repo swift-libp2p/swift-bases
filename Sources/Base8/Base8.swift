@@ -67,7 +67,7 @@ public enum Base8 {
                 encodedBytes[encodedWriteOffset + 4] = nextChars.4
                 encodedBytes[encodedWriteOffset + 5] = nextChars.5
                 encodedBytes[encodedWriteOffset + 6] = nextChars.6
-                encodedBytes[encodedWriteOffset + 7] = nextChars.7
+                encodedBytes[encodedWriteOffset + 7] = nextChars.6
 
                 encodedWriteOffset += encodedBlockSize
             }
