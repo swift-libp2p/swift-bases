@@ -12,11 +12,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
+import Testing
 
 @testable import Base32
 
-final class Base32Tests: XCTestCase {
+@Suite("Base 32 Tests")
+struct Base32Tests {
 
     let debug: Bool = false
 
@@ -34,27 +35,27 @@ final class Base32Tests: XCTestCase {
     ]
 
     /// Standard Base32 Encoding (uppercase with padding)
-    func testEncodeStandard() {
+    @Test func testEncodeStandard() {
         if debug { print("-- Base32 Standard (Uppercase with Padding) --") }
         for test in Base32StandardTests.sorted(by: { $0.key.count < $1.key.count }) {
             let encoded = Base32.encode(test.key)
             if debug { print("Base32.encode(\"\(test.key)\") => \"\(encoded)\"") }
-            XCTAssertEqual(encoded, test.value)
+            #expect(encoded == test.value)
         }
         if debug { print("-----------------------------------------------------") }
     }
 
     /// Standard Base32 Decoding (uppercase with padding)
-    func testDecodeStandard() {
+    @Test func testDecodeStandard() throws {
         for test in Base32StandardTests.sorted(by: { $0.key.count < $1.key.count }) {
             do {
                 let d = try Base32.decode(test.value)
                 let str = String(data: d, encoding: .ascii)
                 if debug { print("Base32.decode(\"\(test.value)\") => \"\(str ?? "nil")\"") }
-                XCTAssertEqual(str, test.key)
+                #expect(str == test.key)
             } catch {
-                print("Error: \(error)")
-                XCTFail(error.localizedDescription)
+                if debug { print("Error: \(error.localizedDescription)") }
+                throw error
             }
         }
     }
@@ -72,14 +73,14 @@ final class Base32Tests: XCTestCase {
         "Decentralize everything!!": "irswgzloorzgc3djpjssazlwmvzhs5dinfxgoijb",
     ]
     /// Standard Base32 Encoding (lowercase with padding)
-    func testEncodeStandardLowercaseWithPadding() {
+    @Test func testEncodeStandardLowercaseWithPadding() {
         if debug { print("-- Base32 Standard (Lowercase with Padding) --") }
         for test in Base32StandardTestsLowercaseWithPadding.sorted(by: { $0.key.count < $1.key.count }) {
             let encoded = Base32.encode(test.key, options: .letterCase(.lower), .pad(true))
             if debug {
                 print("Base32.encode(\"\(test.key)\", options: .letterCase(.lower), .pad(true)) => \"\(encoded)\"")
             }
-            XCTAssertEqual(encoded, test.value)
+            #expect(encoded == test.value)
         }
         if debug { print("-----------------------------------------------------") }
     }
@@ -112,14 +113,14 @@ final class Base32Tests: XCTestCase {
     ]
 
     /// Standard Base32 Encoding (uppercase without padding)
-    func testEncodeStandardUppercaseWithoutPadding() {
+    @Test func testEncodeStandardUppercaseWithoutPadding() {
         if debug { print("-- Base32 Standard (Uppercase without Padding) --") }
         for test in Base32StandardTestsUppercaseNoPadding.sorted(by: { $0.key.count < $1.key.count }) {
             let encoded = Base32.encode(test.key, options: .letterCase(.upper), .pad(false))
             if debug {
                 print("Base32.encode(\"\(test.key)\", options: .letterCase(.upper), .pad(false)) => \"\(encoded)\"")
             }
-            XCTAssertEqual(encoded, test.value)
+            #expect(encoded == test.value)
         }
         if debug { print("-----------------------------------------------------") }
     }
@@ -138,14 +139,14 @@ final class Base32Tests: XCTestCase {
     ]
 
     /// Standard Base32 Encoding (lowercase without padding)
-    func testEncodeStandardLowercaseWithoutPadding() {
+    @Test func testEncodeStandardLowercaseWithoutPadding() {
         if debug { print("-- Base32 Standard (Lowercase without Padding) --") }
         for test in Base32StandardTestsLowercaseNoPadding.sorted(by: { $0.key.count < $1.key.count }) {
             let encoded = Base32.encode(test.key, options: .letterCase(.lower), .pad(false))
             if debug {
                 print("Base32.encode(\"\(test.key)\", options: .letterCase(.lower), .pad(false)) => \"\(encoded)\"")
             }
-            XCTAssertEqual(encoded, test.value)
+            #expect(encoded == test.value)
         }
         if debug { print("-----------------------------------------------------") }
     }
@@ -165,27 +166,27 @@ final class Base32Tests: XCTestCase {
     ]
 
     /// Hex Base32 Encoding (uppercase with padding)
-    func testEncodeHex() {
+    @Test func testEncodeHex() {
         if debug { print("-- Base32 Extended Hex (Uppercase with Padding) --") }
         for test in Base32HexTests.sorted(by: { $0.key.count < $1.key.count }) {
             let encoded = Base32.encode(test.key, variant: .hex)
             if debug { print("Base32.encode(\"\(test.key)\", variant: .hex) => \"\(encoded)\"") }
-            XCTAssertEqual(encoded, test.value)
+            #expect(encoded == test.value)
         }
         if debug { print("-----------------------------------------------------") }
     }
 
     /// Hex Base32 Decoding (uppercase with padding)
-    func testDecodeHex() {
+    @Test func testDecodeHex() throws {
         for test in Base32HexTests.sorted(by: { $0.key.count < $1.key.count }) {
             do {
                 let d = try Base32.decode(test.value, variant: .hex)
                 let str = String(data: d, encoding: .ascii)
                 if debug { print("Base32.decode(\"\(test.value)\", variant: .hex) => \"\(str ?? "nil")\"") }
-                XCTAssertEqual(str, test.key)
+                #expect(str == test.key)
             } catch {
-                print("Error: \(error)")
-                XCTFail(error.localizedDescription)
+                if debug { print("Error: \(error.localizedDescription)") }
+                throw error
             }
         }
     }
@@ -204,7 +205,7 @@ final class Base32Tests: XCTestCase {
     ]
 
     /// Hex Base32 Encoding (uppercase without padding)
-    func testEncodeHexLowercaseWithPadding() {
+    @Test func testEncodeHexLowercaseWithPadding() {
         if debug { print("-- Base32 Extended Hex (Lowercase with Padding) --") }
         for test in Base32HexTestsLowercaseWithPadding.sorted(by: { $0.key.count < $1.key.count }) {
             let encoded = Base32.encode(test.key, variant: .hex, options: .letterCase(.lower), .pad(true))
@@ -213,7 +214,7 @@ final class Base32Tests: XCTestCase {
                     "Base32.encode(\"\(test.key)\", variant: .hex, options: .letterCase(.lower), .pad(true)) => \"\(encoded)\""
                 )
             }
-            XCTAssertEqual(encoded, test.value)
+            #expect(encoded == test.value)
         }
         if debug { print("-----------------------------------------------------") }
     }
@@ -232,7 +233,7 @@ final class Base32Tests: XCTestCase {
     ]
 
     /// Hex Base32 Encoding (uppercase without padding)
-    func testEncodeHexUppercaseWithoutPadding() {
+    @Test func testEncodeHexUppercaseWithoutPadding() {
         if debug { print("-- Base32 Extended Hex (Uppercase without Padding) --") }
         for test in Base32HexTestsUppercaseNoPadding.sorted(by: { $0.key.count < $1.key.count }) {
             let encoded = Base32.encode(test.key, variant: .hex, options: .letterCase(.upper), .pad(false))
@@ -241,7 +242,7 @@ final class Base32Tests: XCTestCase {
                     "Base32.encode(\"\(test.key)\", variant: .hex, options: .letterCase(.upper), .pad(false)) => \"\(encoded)\""
                 )
             }
-            XCTAssertEqual(encoded, test.value)
+            #expect(encoded == test.value)
         }
         if debug { print("-----------------------------------------------------") }
     }
@@ -260,7 +261,7 @@ final class Base32Tests: XCTestCase {
     ]
 
     /// Hex Base32 Encoding (lowercase without padding)
-    func testEncodeHexLowercaseWithoutPadding() {
+    @Test func testEncodeHexLowercaseWithoutPadding() {
         if debug { print("-- Base32 Extended Hex (Lowercase without Padding) --") }
         for test in Base32HexTestsLowercaseNoPadding.sorted(by: { $0.key.count < $1.key.count }) {
             let encoded = Base32.encode(test.key, variant: .hex, options: .letterCase(.lower), .pad(false))
@@ -269,13 +270,13 @@ final class Base32Tests: XCTestCase {
                     "Base32.encode(\"\(test.key)\", variant: .hex, options: .letterCase(.lower), .pad(false)) => \"\(encoded)\""
                 )
             }
-            XCTAssertEqual(encoded, test.value)
+            #expect(encoded == test.value)
         }
         if debug { print("-----------------------------------------------------") }
     }
 
     // MARK: - Z Tests
-    func testZ() {
+    @Test func testZ() {
         //XCTAssertEqual(Base32.encode("".data(using: .ascii)!, variant: .z),       ""                 )
         //XCTAssertEqual(Base32.encode("f".data(using: .ascii)!, variant: .z),      "CO======"         )
         //XCTAssertEqual(Base32.encode("fo".data(using: .ascii)!, variant: .z),     "CPNG===="         )
@@ -284,33 +285,33 @@ final class Base32Tests: XCTestCase {
         //XCTAssertEqual(Base32.encode("fooba".data(using: .ascii)!, variant: .z),  "CPNMUOJ1"         )
         //XCTAssertEqual(Base32.encode("foobar".data(using: .ascii)!, variant: .z), "CPNMUOJ1E8======" )
 
-        XCTAssertEqual(
-            Base32.encode("yes mani !", variant: .z, options: .letterCase(.lower), .pad(false)),
-            "xf1zgedpcfzg1ebb"
+        #expect(
+            Base32.encode("yes mani !", variant: .z, options: .letterCase(.lower), .pad(false))
+                == "xf1zgedpcfzg1ebb"
         )
-        XCTAssertEqual(
-            Base32.encode("\0\0yes mani !", variant: .z, options: .letterCase(.lower), .pad(false), .nullChar(.drop)),
-            "xf1zgedpcfzg1ebb"
+        #expect(
+            Base32.encode("\0\0yes mani !", variant: .z, options: .letterCase(.lower), .pad(false), .nullChar(.drop))
+                == "xf1zgedpcfzg1ebb"
         )
-        XCTAssertEqual(
-            Base32.encode("\0yes mani !", variant: .z, options: .letterCase(.lower), .pad(false)),
-            "ybhskh3ypiosh4jyrr"
+        #expect(
+            Base32.encode("\0yes mani !", variant: .z, options: .letterCase(.lower), .pad(false))
+                == "ybhskh3ypiosh4jyrr"
         )
-        XCTAssertEqual(
-            Base32.encode("\0\0yes mani !", variant: .z, options: .letterCase(.lower), .pad(false)),
-            "yyy813murbssn5ujryoo"
+        #expect(
+            Base32.encode("\0\0yes mani !", variant: .z, options: .letterCase(.lower), .pad(false))
+                == "yyy813murbssn5ujryoo"
         )
-        XCTAssertEqual(
-            Base32.encode("hello world", variant: .z, options: .letterCase(.lower), .pad(false)),
-            "pb1sa5dxrb5s6hucco"
+        #expect(
+            Base32.encode("hello world", variant: .z, options: .letterCase(.lower), .pad(false))
+                == "pb1sa5dxrb5s6hucco"
         )
-        XCTAssertEqual(
-            Base32.encode("Decentralize everything!!", variant: .z, options: .letterCase(.lower), .pad(false)),
-            "et1sg3mqqt3gn5djxj11y3msci3817depfzgqejb"
+        #expect(
+            Base32.encode("Decentralize everything!!", variant: .z, options: .letterCase(.lower), .pad(false))
+                == "et1sg3mqqt3gn5djxj11y3msci3817depfzgqejb"
         )
 
-        XCTAssertEqual(try? Base32.decode("Xf1zgeDpcfzG1ebB", variant: .z), "yes mani !".data(using: .ascii))
-        //XCTAssertEqual(Base32.encode("hello world".data(using: .ascii)!, variant: .z), "D1IMOR3F41RMUSJCCG======"                )
-        //XCTAssertEqual(Base32.encode("Decentralize everything!!".data(using: .ascii)!, variant: .z), "8HIM6PBEEHP62R39F9II0PBMCLP7IT38D5N6E891")
+        #expect((try? Base32.decode("Xf1zgeDpcfzG1ebB", variant: .z)) == "yes mani !".data(using: .ascii))
+        //#expect(Base32.encode("hello world".data(using: .ascii)!, variant: .z) == "D1IMOR3F41RMUSJCCG======"                )
+        //#expect(Base32.encode("Decentralize everything!!".data(using: .ascii)!, variant: .z) == "8HIM6PBEEHP62R39F9II0PBMCLP7IT38D5N6E891")
     }
 }
