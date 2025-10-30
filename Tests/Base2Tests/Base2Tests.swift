@@ -12,12 +12,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
+import Testing
 
 @testable import Base2
 
-final class Base2Tests: XCTestCase {
-    func testBase2() {
+@Suite("Base 2 Tests")
+struct Base2Tests {
+    @Test func testBase2() {
         let tests: [String: [UInt8]] = [
             "00000000": [0],
             "00000001": [1],
@@ -44,35 +45,36 @@ final class Base2Tests: XCTestCase {
         ]
 
         for (str, byte) in tests {
-            XCTAssertEqual(byte.binaryEncoded(), str)
+            #expect(byte.binaryEncoded() == str)
         }
 
         let bytes: [UInt8] = [0]
-        XCTAssertEqual(bytes.binaryEncoded(), "00000000")
+        #expect(bytes.binaryEncoded() == "00000000")
 
         let bytes2: [UInt8] = [1]
-        XCTAssertEqual(bytes2.binaryEncoded(), "00000001")
+        #expect(bytes2.binaryEncoded() == "00000001")
     }
 
-    func testBase2EncodingStringExtensions() {
+    @Test func testBase2EncodingStringExtensions() throws {
         let testString = "Hello World"
-        let encoded = testString.binaryEncoded(using: .utf8, byteSpacing: true)
-        //print(encoded ?? "NIL")
 
-        let decoded = encoded!.binaryDecodedString
-        //print(decoded ?? "NIL")
+        let encoded = try #require(testString.binaryEncoded(using: .utf8, byteSpacing: true))
+        #expect(
+            encoded
+                == "01001000 01100101 01101100 01101100 01101111 00100000 01010111 01101111 01110010 01101100 01100100"
+        )
 
-        XCTAssertEqual(testString, decoded)
+        let decoded = encoded.binaryDecodedString
+        #expect(testString == decoded)
     }
 
-    func testBase2EncodingDataExtensions() {
-        let testData = "Hello World".data(using: .utf8)
-        let encoded = testData?.binaryEncoded()
-        //print(encoded ?? "NIL")
+    @Test func testBase2EncodingDataExtensions() throws {
+        let testData = try #require("Hello World".data(using: .utf8))
 
-        let decoded = encoded!.binaryDecoded
-        //print(decoded)
+        let encoded = testData.binaryEncoded()
+        #expect(encoded == "0100100001100101011011000110110001101111001000000101011101101111011100100110110001100100")
 
-        XCTAssertEqual(testData, decoded)
+        let decoded = encoded.binaryDecoded
+        #expect(testData == decoded)
     }
 }

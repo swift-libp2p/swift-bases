@@ -12,183 +12,186 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
+import Foundation
+import Testing
 
 @testable import BaseX
 
-final class BaseXTests: XCTestCase {
+@Suite("Base X Tests")
+struct BaseXTests {
     let testString = "yes mani !"
 
-    func testBase10() throws {
+    @Test func testBase10() throws {
         let baseEncoded = try BaseX.encode(testString, into: .base10Decimal)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base10Decimal), testString)
+        #expect(try BaseX.decode(baseEncoded, as: .base10Decimal) == testString)
 
-        XCTAssertEqual(try BaseX.decode("573277761329450583662625", as: .base10Decimal), testString)
+        #expect(try BaseX.decode("573277761329450583662625", as: .base10Decimal) == testString)
     }
 
-    func testBase16Lower() throws {
+    @Test func testBase16Lower() throws {
         let baseEncoded = try BaseX.encode(testString, into: .base16Hex)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base16Hex), testString)
+        #expect(try BaseX.decode(baseEncoded, as: .base16Hex) == testString)
 
-        XCTAssertEqual(try BaseX.decode("796573206d616e692021", as: .base16Hex), testString)
+        #expect(try BaseX.decode("796573206d616e692021", as: .base16Hex) == testString)
     }
 
-    func testBase16Upper() throws {
+    @Test func testBase16Upper() throws {
         let baseEncoded = try BaseX.encode(testString, into: .base16HexUpper)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base16HexUpper), testString)
+        #expect(try BaseX.decode(baseEncoded, as: .base16HexUpper) == testString)
 
-        XCTAssertEqual(try BaseX.decode("796573206D616E692021", as: .base16HexUpper), testString)
+        #expect(try BaseX.decode("796573206D616E692021", as: .base16HexUpper) == testString)
     }
 
-    func testBase36Lower() throws {
+    @Test func testBase36Lower() throws {
         let baseEncoded = try BaseX.encode(testString, into: .base36)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base36), testString)
+        #expect(try BaseX.decode(baseEncoded, as: .base36) == testString)
 
-        XCTAssertEqual(try BaseX.decode("2lcpzo5yikidynfl", as: .base36), testString)
+        #expect(try BaseX.decode("2lcpzo5yikidynfl", as: .base36) == testString)
     }
 
-    func testBase36Upper() throws {
+    @Test func testBase36Upper() throws {
         let baseEncoded = try BaseX.encode(testString, into: .base36Upper)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base36Upper), testString)
+        #expect(try BaseX.decode(baseEncoded, as: .base36Upper) == testString)
 
-        XCTAssertEqual(try BaseX.decode("2LCPZO5YIKIDYNFL", as: .base36Upper), testString)
+        #expect(try BaseX.decode("2LCPZO5YIKIDYNFL", as: .base36Upper) == testString)
     }
 
-    func testBase58BTC() throws {
+    @Test func testBase58BTC() throws {
         let baseEncoded = try BaseX.encode(testString, into: .base58BTC)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base58BTC), testString)
+        #expect(try BaseX.decode(baseEncoded, as: .base58BTC) == testString)
 
-        XCTAssertEqual(try BaseX.decode("7paNL19xttacUY", as: .base58BTC), testString)
+        #expect(try BaseX.decode("7paNL19xttacUY", as: .base58BTC) == testString)
     }
 
-    func testBase58Flickr() throws {
+    @Test func testBase58Flickr() throws {
         let baseEncoded = try BaseX.encode(testString, into: .base58Flickr)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base58Flickr), testString)
+        #expect(try BaseX.decode(baseEncoded, as: .base58Flickr) == testString)
 
-        XCTAssertEqual(try BaseX.decode("7Pznk19XTTzBtx", as: .base58Flickr), testString)
+        #expect(try BaseX.decode("7Pznk19XTTzBtx", as: .base58Flickr) == testString)
     }
 
     // - MARK: Leading Zero
     let testStringLeadingZero = "\0yes mani !"
 
-    func testBase10LeadingZero() throws {
+    @Test func testBase10LeadingZero() throws {
         let baseEncoded = try BaseX.encode(testStringLeadingZero, into: .base10Decimal)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base10Decimal), testStringLeadingZero)
+        #expect(try BaseX.decode(baseEncoded, as: .base10Decimal) == testStringLeadingZero)
 
-        XCTAssertEqual(try BaseX.decode("0573277761329450583662625", as: .base10Decimal), testStringLeadingZero)
+        #expect(try BaseX.decode("0573277761329450583662625", as: .base10Decimal) == testStringLeadingZero)
     }
 
-    func testBase16LowerLeadingZero() throws {
+    @Test func testBase16LowerLeadingZero() throws {
         let baseEncoded = try BaseX.encode(testStringLeadingZero, into: .base16Hex)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base16Hex), testStringLeadingZero)
+        #expect(try BaseX.decode(baseEncoded, as: .base16Hex) == testStringLeadingZero)
 
-        XCTAssertEqual(try BaseX.decode("00796573206d616e692021", as: .base16Hex), testStringLeadingZero)
+        #expect(try BaseX.decode("00796573206d616e692021", as: .base16Hex) == testStringLeadingZero)
     }
 
-    func testBase16AllZeros() throws {
+    @Test func testBase16AllZeros() throws {
         /// Defaults to 32 bytes
         let zeros = [UInt8](repeating: 0, count: 32)
         let baseEncoded = BaseX.encode(Data(zeros), into: .base16Hex)
         let target = "0000000000000000000000000000000000000000000000000000000000000000"
 
-        XCTAssertEqual(zeros.count, 32)
-        XCTAssertEqual(
-            zeros,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        #expect(zeros.count == 32)
+        #expect(
+            zeros
+                == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         )
-        XCTAssertEqual(target.count, 64)
-        XCTAssertEqual(baseEncoded.count, 64)
-        XCTAssertEqual(baseEncoded, target)
+        #expect(target.count == 64)
+        #expect(baseEncoded.count == 64)
+        #expect(baseEncoded == target)
     }
 
-    func testBase16UpperLeadingZero() throws {
+    @Test func testBase16UpperLeadingZero() throws {
         let baseEncoded = try BaseX.encode(testStringLeadingZero, into: .base16HexUpper)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base16HexUpper), testStringLeadingZero)
+        #expect(try BaseX.decode(baseEncoded, as: .base16HexUpper) == testStringLeadingZero)
 
-        XCTAssertEqual(try BaseX.decode("00796573206D616E692021", as: .base16HexUpper), testStringLeadingZero)
+        #expect(try BaseX.decode("00796573206D616E692021", as: .base16HexUpper) == testStringLeadingZero)
     }
 
-    func testBase36LowerLeadingZero() throws {
+    @Test func testBase36LowerLeadingZero() throws {
         let baseEncoded = try BaseX.encode(testStringLeadingZero, into: .base36)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base36), testStringLeadingZero)
+        #expect(try BaseX.decode(baseEncoded, as: .base36) == testStringLeadingZero)
 
-        XCTAssertEqual(try BaseX.decode("02lcpzo5yikidynfl", as: .base36), testStringLeadingZero)
+        #expect(try BaseX.decode("02lcpzo5yikidynfl", as: .base36) == testStringLeadingZero)
     }
 
-    func testBase36UpperLeadingZero() throws {
+    @Test func testBase36UpperLeadingZero() throws {
         let baseEncoded = try BaseX.encode(testStringLeadingZero, into: .base36Upper)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base36Upper), testStringLeadingZero)
+        #expect(try BaseX.decode(baseEncoded, as: .base36Upper) == testStringLeadingZero)
 
-        XCTAssertEqual(try BaseX.decode("02LCPZO5YIKIDYNFL", as: .base36Upper), testStringLeadingZero)
+        #expect(try BaseX.decode("02LCPZO5YIKIDYNFL", as: .base36Upper) == testStringLeadingZero)
     }
 
-    func testBase58BTCLeadingZero() throws {
+    @Test func testBase58BTCLeadingZero() throws {
         let baseEncoded = try BaseX.encode(testStringLeadingZero, into: .base58BTC)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base58BTC), testStringLeadingZero)
+        #expect(try BaseX.decode(baseEncoded, as: .base58BTC) == testStringLeadingZero)
 
-        XCTAssertEqual(try BaseX.decode("17paNL19xttacUY", as: .base58BTC), testStringLeadingZero)
+        #expect(try BaseX.decode("17paNL19xttacUY", as: .base58BTC) == testStringLeadingZero)
     }
 
-    func testBase58FlickrLeadingZero() throws {
+    @Test func testBase58FlickrLeadingZero() throws {
         let baseEncoded = try BaseX.encode(testStringLeadingZero, into: .base58Flickr)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base58Flickr), testStringLeadingZero)
+        #expect(try BaseX.decode(baseEncoded, as: .base58Flickr) == testStringLeadingZero)
 
-        XCTAssertEqual(try BaseX.decode("17Pznk19XTTzBtx", as: .base58Flickr), testStringLeadingZero)
+        #expect(try BaseX.decode("17Pznk19XTTzBtx", as: .base58Flickr) == testStringLeadingZero)
     }
 
     // - MARK: Two Leading Zeros
     let testStringTwoLeadingZeros = "\0\0yes mani !"
 
-    func testBase10TwoLeadingZeros() throws {
+    @Test func testBase10TwoLeadingZeros() throws {
         let baseEncoded = try BaseX.encode(testStringTwoLeadingZeros, into: .base10Decimal)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base10Decimal), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode(baseEncoded, as: .base10Decimal) == testStringTwoLeadingZeros)
 
-        XCTAssertEqual(try BaseX.decode("00573277761329450583662625", as: .base10Decimal), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode("00573277761329450583662625", as: .base10Decimal) == testStringTwoLeadingZeros)
     }
 
-    func testBase16LowerTwoLeadingZeros() throws {
+    @Test func testBase16LowerTwoLeadingZeros() throws {
         let baseEncoded = try BaseX.encode(testStringTwoLeadingZeros, into: .base16Hex)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base16Hex), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode(baseEncoded, as: .base16Hex) == testStringTwoLeadingZeros)
 
-        XCTAssertEqual(try BaseX.decode("0000796573206d616e692021", as: .base16Hex), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode("0000796573206d616e692021", as: .base16Hex) == testStringTwoLeadingZeros)
     }
 
-    func testBase16UpperTwoLeadingZeros() throws {
+    @Test func testBase16UpperTwoLeadingZeros() throws {
         let baseEncoded = try BaseX.encode(testStringTwoLeadingZeros, into: .base16HexUpper)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base16HexUpper), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode(baseEncoded, as: .base16HexUpper) == testStringTwoLeadingZeros)
 
-        XCTAssertEqual(try BaseX.decode("0000796573206D616E692021", as: .base16HexUpper), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode("0000796573206D616E692021", as: .base16HexUpper) == testStringTwoLeadingZeros)
     }
 
-    func testBase36LowerTwoLeadingZeros() throws {
+    @Test func testBase36LowerTwoLeadingZeros() throws {
         let baseEncoded = try BaseX.encode(testStringTwoLeadingZeros, into: .base36)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base36), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode(baseEncoded, as: .base36) == testStringTwoLeadingZeros)
 
-        XCTAssertEqual(try BaseX.decode("002lcpzo5yikidynfl", as: .base36), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode("002lcpzo5yikidynfl", as: .base36) == testStringTwoLeadingZeros)
     }
 
-    func testBase36UpperTwoLeadingZeros() throws {
+    @Test func testBase36UpperTwoLeadingZeros() throws {
         let baseEncoded = try BaseX.encode(testStringTwoLeadingZeros, into: .base36Upper)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base36Upper), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode(baseEncoded, as: .base36Upper) == testStringTwoLeadingZeros)
 
-        XCTAssertEqual(try BaseX.decode("002LCPZO5YIKIDYNFL", as: .base36Upper), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode("002LCPZO5YIKIDYNFL", as: .base36Upper) == testStringTwoLeadingZeros)
     }
 
-    func testBase58BTCTwoLeadingZeros() throws {
+    @Test func testBase58BTCTwoLeadingZeros() throws {
         let baseEncoded = try BaseX.encode(testStringTwoLeadingZeros, into: .base58BTC)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base58BTC), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode(baseEncoded, as: .base58BTC) == testStringTwoLeadingZeros)
 
-        XCTAssertEqual(try BaseX.decode("117paNL19xttacUY", as: .base58BTC), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode("117paNL19xttacUY", as: .base58BTC) == testStringTwoLeadingZeros)
     }
 
-    func testBase58FlickrTwoLeadingZeros() throws {
+    @Test func testBase58FlickrTwoLeadingZeros() throws {
         let baseEncoded = try BaseX.encode(testStringTwoLeadingZeros, into: .base58Flickr)
-        XCTAssertEqual(try BaseX.decode(baseEncoded, as: .base58Flickr), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode(baseEncoded, as: .base58Flickr) == testStringTwoLeadingZeros)
 
-        XCTAssertEqual(try BaseX.decode("117Pznk19XTTzBtx", as: .base58Flickr), testStringTwoLeadingZeros)
+        #expect(try BaseX.decode("117Pznk19XTTzBtx", as: .base58Flickr) == testStringTwoLeadingZeros)
     }
 
     /// Used to generate the example usage in our readme
+    @Test(.disabled())
     func testBaseXExampleReadme() throws {
         let testString = "Hello World"
 
