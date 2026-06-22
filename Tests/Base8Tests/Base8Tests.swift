@@ -73,4 +73,19 @@ struct Base8Tests {
         #expect(Base8.encode("yes mani !", options: .pad(true)) == "362625631006654133464440102=====")
         #expect(Base8.encode("yes mani !", options: .pad(false)) == "362625631006654133464440102")
     }
+
+    /// The Base8 alphabet is '0'-'7'. Character '8' (ASCII 56) must be rejected;
+    /// previously the decoder's guard `48...56` accepted it and silently produced wrong bytes.
+    @Test func testDecodeRejectsCharacterEight() {
+        #expect(throws: Base8.Error.nonNumericCharacter) {
+            try Base8.decode("888=====")
+        }
+        #expect(throws: Base8.Error.nonNumericCharacter) {
+            try Base8.decode("008=====")
+        }
+        // Boundary: '7' is the highest valid octal digit and must still be accepted.
+        #expect(throws: Never.self) {
+            try Base8.decode("700=====")
+        }
+    }
 }
