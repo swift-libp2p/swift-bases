@@ -150,7 +150,7 @@ struct Base32Tests {
         #expect((try? Base32.decode("AAAAAAAA", variant: .standard)) == Data(repeating: 0x00, count: 5))
         #expect((try? Base32.decode("aaaaaaaa", variant: .standard)) == Data(repeating: 0x00, count: 5))
     }
-    
+
     // MARK: - Hex Tests
     let Base32HexTests: [String: String] = [
         "": "",
@@ -274,7 +274,7 @@ struct Base32Tests {
         }
         if debug { print("-----------------------------------------------------") }
     }
-    
+
     /// The Base32 extended-hex alphabet is '0'-'9' and 'A'-'V' (values 0-31).
     /// Characters 'W'-'Z' (and lowercase) must be rejected; previously the decoder's
     /// guard `65...90` / `97...122` accepted them and silently produced wrong bytes.
@@ -328,7 +328,7 @@ struct Base32Tests {
         //#expect(Base32.encode("hello world".data(using: .ascii)!, variant: .z) == "D1IMOR3F41RMUSJCCG======"                )
         //#expect(Base32.encode("Decentralize everything!!".data(using: .ascii)!, variant: .z) == "8HIM6PBEEHP62R39F9II0PBMCLP7IT38D5N6E891")
     }
-    
+
     @Test func testDecodeZRejectsOutOfRangeLetters() {
         for c in ["l", "L", "v", "V", "0", "2", "#"] {
             #expect(throws: Base32.Error.nonAlphabetCharacter, "expected '\(c)' to be rejected") {
