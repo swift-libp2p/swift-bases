@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Foundation
 import Testing
 
 @testable import Base32
@@ -85,20 +86,6 @@ struct Base32Tests {
         if debug { print("-----------------------------------------------------") }
     }
 
-    //    func testLowercasedPadded() {
-    //        XCTAssertEqual(Base32.encode("", options: .letterCase(.lower)),       ""                 )
-    //        XCTAssertEqual(Base32.encode("f", options: .letterCase(.lower)),      "my======"         )
-    //        XCTAssertEqual(Base32.encode("fo", options: .letterCase(.lower)),     "mzxq===="         )
-    //        XCTAssertEqual(Base32.encode("foo", options: .letterCase(.lower)),    "mzxw6==="         )
-    //        XCTAssertEqual(Base32.encode("foob", options: .letterCase(.lower)),   "mzxw6yq="         )
-    //        XCTAssertEqual(Base32.encode("fooba", options: .letterCase(.lower)),  "mzxw6ytb"         )
-    //        XCTAssertEqual(Base32.encode("foobar", options: .letterCase(.lower)), "mzxw6ytboi======" )
-    //
-    //        XCTAssertEqual(Base32.encode("yes mani !", options: .letterCase(.lower)),                "pfsxgidnmfxgsibb"                        )
-    //        XCTAssertEqual(Base32.encode("hello world", options: .letterCase(.lower)),               "nbswy3dpeb3w64tmmq======"                )
-    //        XCTAssertEqual(Base32.encode("Decentralize everything!!", options: .letterCase(.lower)), "irswgzloorzgc3djpjssazlwmvzhs5dinfxgoijb")
-    //    }
-
     let Base32StandardTestsUppercaseNoPadding: [String: String] = [
         "": "",
         "f": "MY",
@@ -149,6 +136,19 @@ struct Base32Tests {
             #expect(encoded == test.value)
         }
         if debug { print("-----------------------------------------------------") }
+    }
+
+    @Test func testDecodeStandardRejectsOutOfRangeLetters() {
+        for c in ["0", "1", "8", "9", "!", "&", "#"] {
+            #expect(throws: Base32.Error.nonAlphabetCharacter, "expected '\(c)' to be rejected") {
+                try Base32.decode(String(repeating: c, count: 8), variant: .standard)
+            }
+        }
+        // Boundary: '7' is the highest valid standard letter and must still be accepted.
+        #expect((try? Base32.decode("77777777", variant: .standard)) == Data(repeating: 0xFF, count: 5))
+        // Boundary: 'A' is the lowest valid standard letter and must still be accepted.
+        #expect((try? Base32.decode("AAAAAAAA", variant: .standard)) == Data(repeating: 0x00, count: 5))
+        #expect((try? Base32.decode("aaaaaaaa", variant: .standard)) == Data(repeating: 0x00, count: 5))
     }
 
     // MARK: - Hex Tests
@@ -275,6 +275,20 @@ struct Base32Tests {
         if debug { print("-----------------------------------------------------") }
     }
 
+    /// The Base32 extended-hex alphabet is '0'-'9' and 'A'-'V' (values 0-31).
+    /// Characters 'W'-'Z' (and lowercase) must be rejected; previously the decoder's
+    /// guard `65...90` / `97...122` accepted them and silently produced wrong bytes.
+    @Test func testDecodeHexRejectsOutOfRangeLetters() {
+        for c in ["W", "X", "Y", "Z", "w", "x", "y", "z"] {
+            #expect(throws: Base32.Error.nonAlphabetCharacter, "expected '\(c)' to be rejected") {
+                try Base32.decode(String(repeating: c, count: 8), variant: .hex)
+            }
+        }
+        // Boundary: 'V' / 'v' (value 31) is the highest valid hex letter and must still be accepted.
+        #expect((try? Base32.decode("VVVVVVVV", variant: .hex)) == Data(repeating: 0xFF, count: 5))
+        #expect((try? Base32.decode("vvvvvvvv", variant: .hex)) == Data(repeating: 0xFF, count: 5))
+    }
+
     // MARK: - Z Tests
     @Test func testZ() {
         //XCTAssertEqual(Base32.encode("".data(using: .ascii)!, variant: .z),       ""                 )
@@ -313,5 +327,18 @@ struct Base32Tests {
         #expect((try? Base32.decode("Xf1zgeDpcfzG1ebB", variant: .z)) == "yes mani !".data(using: .ascii))
         //#expect(Base32.encode("hello world".data(using: .ascii)!, variant: .z) == "D1IMOR3F41RMUSJCCG======"                )
         //#expect(Base32.encode("Decentralize everything!!".data(using: .ascii)!, variant: .z) == "8HIM6PBEEHP62R39F9II0PBMCLP7IT38D5N6E891")
+    }
+
+    @Test func testDecodeZRejectsOutOfRangeLetters() {
+        for c in ["l", "L", "v", "V", "0", "2", "#"] {
+            #expect(throws: Base32.Error.nonAlphabetCharacter, "expected '\(c)' to be rejected") {
+                try Base32.decode(String(repeating: c, count: 8), variant: .z)
+            }
+        }
+        // Boundary: '9' is the highest valid z letter and must still be accepted.
+        #expect((try? Base32.decode("99999999", variant: .z)) == Data(repeating: 0xFF, count: 5))
+        // Boundary: 'y' is the lowest valid z letter and must still be accepted.
+        #expect((try? Base32.decode("yyyyyyyy", variant: .z)) == Data(repeating: 0x00, count: 5))
+        #expect((try? Base32.decode("YYYYYYYY", variant: .z)) == Data(repeating: 0x00, count: 5))
     }
 }

@@ -197,9 +197,9 @@ struct Base32HexAlphabet: Alphabet {
         switch char {
         case 48...57:
             return char - 48
-        case 65...90:  //Capital Letters
+        case 65...86:  //Capital Letters 'A'-'V' (values 10-31)
             return char - 55
-        case 97...122:  //Lowercased Letters
+        case 97...118:  //Lowercased Letters 'a'-'v' (values 10-31)
             return char - 87
         default:
             throw Base32.Error.nonAlphabetCharacter

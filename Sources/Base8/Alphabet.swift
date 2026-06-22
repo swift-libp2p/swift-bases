@@ -33,11 +33,10 @@ struct Base8Alphabet: Alphabet {
     }
 
     func quintet(decoding char: EncodedChar) throws -> Quintet {
-        guard case 48...56 = char else {
+        guard case 48...55 = char else {
             print("NonNumericCharacter: \(char)")
             throw Base8.Error.nonNumericCharacter
         }
-        //guard char >= 48 && char <= 57 else { throw Base8.Error.nonNumericCharacter }
         return char - 48
     }
 }
