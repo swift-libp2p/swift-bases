@@ -51,6 +51,10 @@ let package = Package(
             dependencies: ["Base32"]
         ),
         .testTarget(
+            name: "Base64Tests",
+            dependencies: ["Base64"]
+        ),
+        .testTarget(
             name: "BaseXTests",
             dependencies: ["BaseX"]
         ),

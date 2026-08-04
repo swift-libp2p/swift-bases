@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Foundation
 import Testing
 
 @testable import Base8
@@ -69,9 +70,33 @@ struct Base8Tests {
         #expect((try? Base8.decodeToString(encoded)) == decoded)
     }
 
+    /// `.nullChar(.drop)` should strip actual leading null bytes (0x00), not the literal
+    /// text "\x00". After dropping, the result matches encoding the payload alone.
+    @Test func testNullCharDropRemovesLeadingNullBytes() {
+        let withNulls = "\0\0yes mani !"
+        #expect(Base8.encode(withNulls, options: .nullChar(.drop)) == Base8.encode("yes mani !"))
+        // Without the option, leading null bytes are preserved (encoded), so they differ.
+        #expect(Base8.encode(withNulls) != Base8.encode("yes mani !"))
+    }
+
     @Test func testEncodeWithOptions() {
         #expect(Base8.encode("yes mani !", options: .pad(true)) == "362625631006654133464440102=====")
         #expect(Base8.encode("yes mani !", options: .pad(false)) == "362625631006654133464440102")
+    }
+
+    /// Non-ASCII input previously trapped because `encode(String)` force-unwrapped
+    /// `data(using: .ascii)`. It now encodes via UTF-8 and round-trips.
+    @Test func testEncodeNonASCIIDoesNotCrash() throws {
+        let input = "café 🚀"
+        let encoded = Base8.encode(input)
+        let decoded = try Base8.decode(encoded)
+        #expect(decoded == Data(input.utf8))
+    }
+
+    /// Empty input previously risked force-unwrapping the base address of a zero-byte
+    /// allocation. It should decode to empty `Data`.
+    @Test func testDecodeEmptyReturnsEmptyData() throws {
+        #expect(try Base8.decode("") == Data())
     }
 
     /// The Base8 alphabet is '0'-'7'. Character '8' (ASCII 56) must be rejected;
@@ -87,5 +112,20 @@ struct Base8Tests {
         #expect(throws: Never.self) {
             try Base8.decode("700=====")
         }
+    }
+
+    /// The Data convenience wrappers mirror the enum's encode/decode.
+    @Test func testDataConvenienceRoundTrip() throws {
+        let data = Data("hello world".utf8)
+        let encoded = data.base8Encoded()
+        #expect(encoded == Base8.encode("hello world"))
+        #expect(try Data(base8Encoded: encoded) == data)
+    }
+
+    /// Compiles only if the public option/error types are Sendable.
+    @Test func testSendableConformances() {
+        let _: any Sendable = Base8.Base8Options.pad(true)
+        let _: any Sendable = Base8.NullCharOpts.drop
+        let _: any Sendable = Base8.Error.incompleteBlock
     }
 }

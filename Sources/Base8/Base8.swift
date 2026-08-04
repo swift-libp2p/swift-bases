@@ -15,13 +15,13 @@
 import Foundation
 
 public enum Base8 {
-    public enum NullCharOpts {
+    public enum NullCharOpts: Sendable {
         case drop
         case encode
         case literal
     }
 
-    public enum Base8Options {
+    public enum Base8Options: Sendable {
         case pad(Bool)
         case nullChar(NullCharOpts)
     }
@@ -32,8 +32,10 @@ public enum Base8 {
     private static let encodedBlockSize = 8
 
     public static func encode(_ str: String, options: Base8Options...) -> String {
-        //guard let d = str.data(using: .ascii) else { return nil }
-        self.encode(str.data(using: .ascii)!, options: options)
+        // Encode via UTF-8 so non-ASCII input is handled instead of trapping.
+        // A Swift String's UTF-8 view is always available, so this never fails.
+        // ASCII input produces identical bytes to the previous `.ascii` encoding.
+        self.encode(Data(str.utf8), options: options)
     }
 
     /// Variadic Overload
@@ -95,24 +97,12 @@ public enum Base8 {
     private static func leadingNullChars(data: Data, opt: NullCharOpts) -> Data {
         switch opt {
         case .drop:
-            var d = data
-            let nullChar: [UInt8] = [92, 120, 48, 48]
-            while d.count > 4, Array(d[d.startIndex...d.startIndex + 3]) == nullChar {
-                d = d.dropFirst(4)
-            }
-            return d
-        case .encode:
-            var d = data
-            var zeros = 0
-            let nullChar: [UInt8] = [92, 120, 48, 48]
-            while d.count > 4, Array(d[d.startIndex...d.startIndex + 3]) == nullChar {
-                zeros += 1
-                d = d.dropFirst(4)
-            }
-            if zeros > 0 { print("Found \(zeros) zeros") }
-            d.insert(contentsOf: [UInt8](repeating: 0, count: zeros), at: d.startIndex)
-            return d
-        case .literal:
+            // Drop actual leading null bytes (0x00). The multibase spec has no notion of
+            // an escaped "\x00" text sequence, so we operate on real bytes — matching the
+            // semantics Base32 already uses (`d.drop(while: { $0 == 0 })`).
+            return data.drop(while: { $0 == 0 })
+        case .encode, .literal:
+            // Preserve leading null bytes; they are encoded like any other byte.
             return data
         }
     }
@@ -138,6 +128,9 @@ public enum Base8 {
         let encodedByteCount = nonPaddingByteCount(encodedData: encodedData)
 
         let decodedByteCount = try byteCount(decoding: encodedByteCount)
+        // Empty (or all-padding) input decodes to no bytes. Return early so we don't
+        // force-unwrap the base address of a zero-byte allocation.
+        guard decodedByteCount > 0 else { return Data() }
         let decodedBytes = UnsafeMutableRawBufferPointer.allocate(
             byteCount: decodedByteCount,
             alignment: MemoryLayout<Byte>.alignment
@@ -184,7 +177,6 @@ public enum Base8 {
                     decodedBytes[decodedWriteOffset + 1] = bytes.1
                     decodedBytes[decodedWriteOffset + 2] = bytes.2
                 default:
-                    print("Incomplete Block: case -> \(min(encodedByteCount - encodedReadOffset, encodedBlockSize))")
                     throw Base8.Error.incompleteBlock
                 }
 
@@ -215,13 +207,12 @@ public enum Base8 {
         case 6:
             extraDecodedBytes = 2
         default:
-            print("Incomplete Block: case -> \(extraEncodedBytes))")
             throw Error.incompleteBlock
         }
         return (encodedByteCount / encodedBlockSize) * unencodedBlockSize + extraDecodedBytes
     }
 
-    public enum Error: Swift.Error {
+    public enum Error: Swift.Error, Sendable {
         /// The input string ends with an incomplete encoded block
         case incompleteBlock
         /// The input string contains a character not in the encoding alphabet
@@ -233,5 +224,17 @@ public enum Base8 {
         case strayBits
         /// If we can't decode data into an Ascii string
         case nonAsciiCompliant
+    }
+}
+
+extension Data {
+    /// Base8-encodes these bytes. Convenience wrapper around `Base8.encode(_:options:)`.
+    public func base8Encoded(options: Base8.Base8Options...) -> String {
+        Base8.encode(self, options: options)
+    }
+
+    /// Decodes a Base8 string into bytes. Convenience wrapper around `Base8.decode(_:)`.
+    public init(base8Encoded string: String) throws {
+        self = try Base8.decode(string)
     }
 }

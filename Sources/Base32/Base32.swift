@@ -46,8 +46,10 @@ public enum Base32 {
     private static let encodedBlockSize = 8
 
     public static func encode(_ str: String, variant: Variant = .standard, options: Base32Options...) -> String {
-        //guard let d = str.data(using: .ascii) else { return nil }
-        self.encode(str.data(using: .ascii)!, variant: variant, options: options)
+        // Encode via UTF-8 so non-ASCII input is handled instead of trapping.
+        // A Swift String's UTF-8 view is always available, so this never fails.
+        // ASCII input produces identical bytes to the previous `.ascii` encoding.
+        self.encode(Data(str.utf8), variant: variant, options: options)
     }
     public static func encode(_ data: Data, variant: Variant = .standard, options: Base32Options...) -> String {
         encode(data, variant: variant, options: options)
@@ -122,9 +124,12 @@ public enum Base32 {
         guard let encodedData = string.data(using: String.Encoding.ascii) else {
             throw Error.nonAlphabetCharacter
         }
-        let encodedByteCount = nonPaddingByteCount(encodedData: encodedData)
+        let encodedByteCount = nonPaddingByteCount(encodedData: encodedData, variant: variant)
 
         let decodedByteCount = try byteCount(decoding: encodedByteCount)
+        // Empty (or all-padding) input decodes to no bytes. Return early so we don't
+        // force-unwrap the base address of a zero-byte allocation.
+        guard decodedByteCount > 0 else { return Data() }
         let decodedBytes = UnsafeMutableRawBufferPointer.allocate(
             byteCount: decodedByteCount,
             alignment: MemoryLayout<Byte>.alignment
@@ -202,7 +207,7 @@ public enum Base32 {
         return Data(bytesNoCopy: decodedBytes.baseAddress!, count: decodedByteCount, deallocator: .free)
     }
 
-    private static func nonPaddingByteCount(encodedData: Data, variant: Variant = .standard) -> Int {
+    private static func nonPaddingByteCount(encodedData: Data, variant: Variant) -> Int {
         let paddingCharacter = variant.alphabet.paddingCharacter
         if let lastNonPaddingCharacterIndex = encodedData.lastIndex(where: { $0 != paddingCharacter }) {
             return lastNonPaddingCharacterIndex + 1
@@ -230,7 +235,7 @@ public enum Base32 {
         return (encodedByteCount / encodedBlockSize) * unencodedBlockSize + extraDecodedBytes
     }
 
-    public enum Error: Swift.Error {
+    public enum Error: Swift.Error, Sendable {
         /// The input string ends with an incomplete encoded block
         case incompleteBlock
         /// The input string contains a character not in the encoding alphabet
@@ -240,5 +245,17 @@ public enum Base32 {
         case strayBits
         /// If we can't decode data into an Ascii string
         case nonAsciiCompliant
+    }
+}
+
+extension Data {
+    /// Base32-encodes these bytes. Convenience wrapper around `Base32.encode(_:variant:options:)`.
+    public func base32Encoded(variant: Variant = .standard, options: Base32Options...) -> String {
+        Base32.encode(self, variant: variant, options: options)
+    }
+
+    /// Decodes a Base32 string into bytes. Convenience wrapper around `Base32.decode(_:variant:)`.
+    public init(base32Encoded string: String, variant: Variant = .standard) throws {
+        self = try Base32.decode(string, variant: variant)
     }
 }

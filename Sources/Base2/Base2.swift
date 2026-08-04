@@ -14,8 +14,11 @@
 
 import Foundation
 
-public enum Base2Error: Error {
+public enum Base2Error: Error, Sendable {
     case invalidBinaryCharacter
+    /// The binary string's length (after removing spaces) is not a multiple of 8,
+    /// so it does not represent a whole number of bytes.
+    case invalidBinaryLength
 }
 
 extension String {
@@ -26,13 +29,10 @@ extension String {
 
     public var binaryDecoded: Data {
         let s = self.replacingOccurrences(of: " ", with: "")
-        guard s.filter({ $0 == "0" || $0 == "1" }).count == s.count else { return Data() }
+        guard s.filter({ $0 == "0" || $0 == "1" }).count == s.count, s.count % 8 == 0 else { return Data() }
         var bytes: [UInt8] = []
-        var zeros = 0
         for byte in s.chunked(into: 8) {
             if let u = UInt8(byte, radix: 2) {
-                //print("Binary Byte: \(byte) => \(u)")
-                if u == 0 { zeros += 1 }
                 bytes.append(u)
             }
         }
@@ -40,8 +40,10 @@ extension String {
     }
 
     public var binaryDecodedString: String? {
-        try? Data(binaryString: self).map { String(UnicodeScalar($0)) }.joined()
-        //return self.binaryDecoded.map { String(UnicodeScalar($0)) }.joined()
+        // Decode the recovered bytes as UTF-8 so multi-byte scalars round-trip.
+        // (The previous per-byte `UnicodeScalar` mapping only worked for ASCII/Latin-1.)
+        guard let data = try? Data(binaryString: self) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 }
 
@@ -72,12 +74,10 @@ extension Array where Element == UInt8 {
     public init(binaryString str: String) throws {
         let s = str.replacingOccurrences(of: " ", with: "")
         guard s.filter({ $0 == "0" || $0 == "1" }).count == s.count else { throw Base2Error.invalidBinaryCharacter }
+        guard s.count % 8 == 0 else { throw Base2Error.invalidBinaryLength }
         self = []
-        var zeros = 0
         for byte in s.chunked(into: 8) {
             if let u = UInt8(byte, radix: 2) {
-                //print("Binary Byte: \(byte) => \(u)")
-                if u == 0 { zeros += 1 }
                 self.append(u)
             }
         }

@@ -16,6 +16,13 @@ import Foundation
 
 private func buildAlphabetBase(_ alphabet: String) -> AlphabetBase {
     let characters = Array(alphabet)
+    // A usable positional alphabet needs at least a radix of 2, and every character
+    // must be distinct (duplicates would silently corrupt the decode lookup map).
+    precondition(characters.count >= 2, "BaseX alphabet must contain at least 2 characters")
+    precondition(
+        Set(characters).count == characters.count,
+        "BaseX alphabet must not contain duplicate characters"
+    )
     let indexed: [Character] = characters.map { $0 }
     var tmpMap = [Character: UInt]()
     var i: UInt = 0
@@ -36,12 +43,12 @@ private struct AlphabetBase {
 }
 
 public enum BaseX {
-    public enum BaseXError: Error {
+    public enum BaseXError: Error, Sendable {
         case invalidStringEncoding
         case invalidCharacter
     }
 
-    public enum Alphabets: Equatable {
+    public enum Alphabets: Equatable, Sendable {
         case base10Decimal
         case base16Hex
         case base16HexUpper
@@ -72,6 +79,12 @@ public enum BaseX {
             }
         }
 
+        /// Number of encoded characters that represent a single leading zero byte.
+        ///
+        /// Note: the only values that return `2` are the base16 variants, and those are
+        /// always handled by the dedicated hex path in `encode`/`decode` (never by
+        /// `encodeALT`/`decodeALT`). In practice the generic ALT routines therefore only
+        /// ever observe `charsPerBit == 1`; the `== 2` branches within them are unreachable.
         fileprivate var charsPerBit: Int {
             switch self {
             case .base16Hex: return 2
@@ -154,11 +167,7 @@ public enum BaseX {
 
     public static func encode(_ data: Data, into base: BaseX.Alphabets) -> String {
         guard base == .base16Hex || base == .base16HexUpper else { return BaseX.encodeALT(data, into: base) }
-        if base == .base16Hex {
-            return [UInt8](data).toHexString()
-        } else {
-            return [UInt8](data).toHexString().uppercased()
-        }
+        return [UInt8](data).toHexString(uppercase: base == .base16HexUpper)
     }
 
     static func decodeALT(
@@ -223,7 +232,7 @@ public enum BaseX {
 
     public static func decode(_ str: String, as base: BaseX.Alphabets) throws -> Data {
         guard base == .base16Hex || base == .base16HexUpper else { return try BaseX.decodeALT(str, as: base) }
-        return Data([UInt8](hex: str))
+        return Data(try [UInt8](validatingHex: str))
     }
 
 }
@@ -286,7 +295,14 @@ extension Array {
 }
 
 extension Array where Element == UInt8 {
-    init(hex: String) {
+    /// Parses a hexadecimal string into bytes, throwing on malformed input.
+    ///
+    /// Unlike the lenient CryptoSwift-derived parser this replaces (which silently
+    /// returned an empty array on a bad character and promoted a dangling nibble to a
+    /// byte on odd-length input), invalid characters and odd-length input raise
+    /// `BaseX.BaseXError.invalidCharacter`. This makes base16 decoding report errors
+    /// the same way every other BaseX alphabet already does.
+    init(validatingHex hex: String) throws {
         self.init(reserveCapacity: hex.unicodeScalars.lazy.underestimatedCount)
         var buffer: UInt8?
         var skip = hex.hasPrefix("0x") ? 2 : 0
@@ -295,22 +311,16 @@ extension Array where Element == UInt8 {
                 skip -= 1
                 continue
             }
-            guard char.value >= 48 && char.value <= 102 else {
-                removeAll()
-                return
-            }
             let v: UInt8
-            let c: UInt8 = UInt8(char.value)
-            switch c {
-            case let c where c <= 57:
-                v = c - 48
-            case let c where c >= 65 && c <= 70:
-                v = c - 55
-            case let c where c >= 97:
-                v = c - 87
+            switch char.value {
+            case 48...57:  // '0'-'9'
+                v = UInt8(char.value) - 48
+            case 65...70:  // 'A'-'F'
+                v = UInt8(char.value) - 55
+            case 97...102:  // 'a'-'f'
+                v = UInt8(char.value) - 87
             default:
-                removeAll()
-                return
+                throw BaseX.BaseXError.invalidCharacter
             }
             if let b = buffer {
                 append(b << 4 | v)
@@ -319,19 +329,29 @@ extension Array where Element == UInt8 {
                 buffer = v
             }
         }
-        if let b = buffer {
-            append(b)
+        // A leftover nibble means an odd number of hex digits — not whole bytes.
+        if buffer != nil {
+            throw BaseX.BaseXError.invalidCharacter
         }
     }
 
-    func toHexString() -> String {
-        `lazy`.reduce(into: "") {
-            var s = String($1, radix: 16)
-            if s.count == 1 {
-                s = "0" + s
-            }
-            $0 += s
+    /// Renders the bytes as a hexadecimal string in a single pass.
+    ///
+    /// Uses a direct nibble→character lookup for the requested case, avoiding both the
+    /// per-byte `String(_, radix:)` allocations and the extra `.uppercased()` pass the
+    /// previous uppercase path incurred.
+    func toHexString(uppercase: Bool = false) -> String {
+        let alphabet: [UInt8] =
+            uppercase
+            ? Array("0123456789ABCDEF".utf8)
+            : Array("0123456789abcdef".utf8)
+        var chars = [UInt8]()
+        chars.reserveCapacity(count * 2)
+        for byte in self {
+            chars.append(alphabet[Int(byte >> 4)])
+            chars.append(alphabet[Int(byte & 0x0F)])
         }
+        return String(decoding: chars, as: UTF8.self)
     }
 }
 

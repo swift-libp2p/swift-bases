@@ -138,6 +138,19 @@ struct Base32Tests {
         if debug { print("-----------------------------------------------------") }
     }
 
+    /// Non-ASCII input previously trapped because `encode(String)` force-unwrapped
+    /// `data(using: .ascii)`. It now encodes via UTF-8 and round-trips.
+    @Test func testEncodeNonASCIIDoesNotCrash() throws {
+        let input = "café 🚀"
+        let encoded = Base32.encode(input)
+        let decoded = try Base32.decode(encoded)
+        #expect(decoded == Data(input.utf8))
+    }
+
+    @Test func testDecodeEmptyReturnsEmptyData() throws {
+        #expect(try Base32.decode("") == Data())
+    }
+
     @Test func testDecodeStandardRejectsOutOfRangeLetters() {
         for c in ["0", "1", "8", "9", "!", "&", "#"] {
             #expect(throws: Base32.Error.nonAlphabetCharacter, "expected '\(c)' to be rejected") {
@@ -340,5 +353,24 @@ struct Base32Tests {
         // Boundary: 'y' is the lowest valid z letter and must still be accepted.
         #expect((try? Base32.decode("yyyyyyyy", variant: .z)) == Data(repeating: 0x00, count: 5))
         #expect((try? Base32.decode("YYYYYYYY", variant: .z)) == Data(repeating: 0x00, count: 5))
+    }
+
+    /// The Data convenience wrappers mirror the enum's encode/decode, including variants.
+    @Test func testDataConvenienceRoundTrip() throws {
+        let data = Data("hello world".utf8)
+        let encoded = data.base32Encoded()
+        #expect(encoded == Base32.encode("hello world"))
+        #expect(try Data(base32Encoded: encoded) == data)
+
+        let hex = data.base32Encoded(variant: .hex)
+        #expect(try Data(base32Encoded: hex, variant: .hex) == data)
+    }
+
+    /// Compiles only if the public option/variant/error types are Sendable.
+    @Test func testSendableConformances() {
+        let _: any Sendable = Variant.standard
+        let _: any Sendable = Base32Options.pad(true)
+        let _: any Sendable = LetterCase.lower
+        let _: any Sendable = Base32.Error.strayBits
     }
 }
