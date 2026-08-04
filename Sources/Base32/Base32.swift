@@ -247,3 +247,15 @@ public enum Base32 {
         case nonAsciiCompliant
     }
 }
+
+extension Data {
+    /// Base32-encodes these bytes. Convenience wrapper around `Base32.encode(_:variant:options:)`.
+    public func base32Encoded(variant: Variant = .standard, options: Base32Options...) -> String {
+        Base32.encode(self, variant: variant, options: options)
+    }
+
+    /// Decodes a Base32 string into bytes. Convenience wrapper around `Base32.decode(_:variant:)`.
+    public init(base32Encoded string: String, variant: Variant = .standard) throws {
+        self = try Base32.decode(string, variant: variant)
+    }
+}

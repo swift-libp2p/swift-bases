@@ -226,3 +226,15 @@ public enum Base8 {
         case nonAsciiCompliant
     }
 }
+
+extension Data {
+    /// Base8-encodes these bytes. Convenience wrapper around `Base8.encode(_:options:)`.
+    public func base8Encoded(options: Base8.Base8Options...) -> String {
+        Base8.encode(self, options: options)
+    }
+
+    /// Decodes a Base8 string into bytes. Convenience wrapper around `Base8.decode(_:)`.
+    public init(base8Encoded string: String) throws {
+        self = try Base8.decode(string)
+    }
+}
