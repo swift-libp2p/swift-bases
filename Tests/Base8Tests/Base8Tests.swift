@@ -70,6 +70,15 @@ struct Base8Tests {
         #expect((try? Base8.decodeToString(encoded)) == decoded)
     }
 
+    /// `.nullChar(.drop)` should strip actual leading null bytes (0x00), not the literal
+    /// text "\x00". After dropping, the result matches encoding the payload alone.
+    @Test func testNullCharDropRemovesLeadingNullBytes() {
+        let withNulls = "\0\0yes mani !"
+        #expect(Base8.encode(withNulls, options: .nullChar(.drop)) == Base8.encode("yes mani !"))
+        // Without the option, leading null bytes are preserved (encoded), so they differ.
+        #expect(Base8.encode(withNulls) != Base8.encode("yes mani !"))
+    }
+
     @Test func testEncodeWithOptions() {
         #expect(Base8.encode("yes mani !", options: .pad(true)) == "362625631006654133464440102=====")
         #expect(Base8.encode("yes mani !", options: .pad(false)) == "362625631006654133464440102")

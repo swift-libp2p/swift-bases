@@ -97,24 +97,12 @@ public enum Base8 {
     private static func leadingNullChars(data: Data, opt: NullCharOpts) -> Data {
         switch opt {
         case .drop:
-            var d = data
-            let nullChar: [UInt8] = [92, 120, 48, 48]
-            while d.count > 4, Array(d[d.startIndex...d.startIndex + 3]) == nullChar {
-                d = d.dropFirst(4)
-            }
-            return d
-        case .encode:
-            var d = data
-            var zeros = 0
-            let nullChar: [UInt8] = [92, 120, 48, 48]
-            while d.count > 4, Array(d[d.startIndex...d.startIndex + 3]) == nullChar {
-                zeros += 1
-                d = d.dropFirst(4)
-            }
-            if zeros > 0 { print("Found \(zeros) zeros") }
-            d.insert(contentsOf: [UInt8](repeating: 0, count: zeros), at: d.startIndex)
-            return d
-        case .literal:
+            // Drop actual leading null bytes (0x00). The multibase spec has no notion of
+            // an escaped "\x00" text sequence, so we operate on real bytes — matching the
+            // semantics Base32 already uses (`d.drop(while: { $0 == 0 })`).
+            return data.drop(while: { $0 == 0 })
+        case .encode, .literal:
+            // Preserve leading null bytes; they are encoded like any other byte.
             return data
         }
     }
