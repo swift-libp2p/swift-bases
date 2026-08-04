@@ -214,6 +214,24 @@ struct BaseXTests {
         #expect(try BaseX.decode(encoded, as: .custom(alphabet)) == testString)
     }
 
+    /// The uppercase hex path now uses a direct lookup table (no `.uppercased()` pass);
+    /// it must still equal the lowercased output uppercased.
+    @Test func testBase16UppercaseDirectTable() throws {
+        let data = Data("Hello World".utf8)
+        let upper = BaseX.encode(data, into: .base16HexUpper)
+        let lower = BaseX.encode(data, into: .base16Hex)
+        #expect(upper == lower.uppercased())
+        #expect(upper == "48656C6C6F20576F726C64")
+        #expect(try BaseX.decode(upper, as: .base16HexUpper) == data)
+    }
+
+    /// Compiles only if the public alphabet/error types are Sendable.
+    @Test func testSendableConformances() {
+        let _: any Sendable = BaseX.Alphabets.base58BTC
+        let _: any Sendable = BaseX.Alphabets.custom("abc")
+        let _: any Sendable = BaseX.BaseXError.invalidCharacter
+    }
+
     /// Used to generate the example usage in our readme
     @Test(.disabled())
     func testBaseXExampleReadme() throws {

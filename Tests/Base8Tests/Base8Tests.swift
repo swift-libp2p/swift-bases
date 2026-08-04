@@ -113,4 +113,19 @@ struct Base8Tests {
             try Base8.decode("700=====")
         }
     }
+
+    /// The Data convenience wrappers mirror the enum's encode/decode.
+    @Test func testDataConvenienceRoundTrip() throws {
+        let data = Data("hello world".utf8)
+        let encoded = data.base8Encoded()
+        #expect(encoded == Base8.encode("hello world"))
+        #expect(try Data(base8Encoded: encoded) == data)
+    }
+
+    /// Compiles only if the public option/error types are Sendable.
+    @Test func testSendableConformances() {
+        let _: any Sendable = Base8.Base8Options.pad(true)
+        let _: any Sendable = Base8.NullCharOpts.drop
+        let _: any Sendable = Base8.Error.incompleteBlock
+    }
 }

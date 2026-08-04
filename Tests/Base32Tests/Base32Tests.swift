@@ -354,4 +354,23 @@ struct Base32Tests {
         #expect((try? Base32.decode("yyyyyyyy", variant: .z)) == Data(repeating: 0x00, count: 5))
         #expect((try? Base32.decode("YYYYYYYY", variant: .z)) == Data(repeating: 0x00, count: 5))
     }
+
+    /// The Data convenience wrappers mirror the enum's encode/decode, including variants.
+    @Test func testDataConvenienceRoundTrip() throws {
+        let data = Data("hello world".utf8)
+        let encoded = data.base32Encoded()
+        #expect(encoded == Base32.encode("hello world"))
+        #expect(try Data(base32Encoded: encoded) == data)
+
+        let hex = data.base32Encoded(variant: .hex)
+        #expect(try Data(base32Encoded: hex, variant: .hex) == data)
+    }
+
+    /// Compiles only if the public option/variant/error types are Sendable.
+    @Test func testSendableConformances() {
+        let _: any Sendable = Variant.standard
+        let _: any Sendable = Base32Options.pad(true)
+        let _: any Sendable = LetterCase.lower
+        let _: any Sendable = Base32.Error.strayBits
+    }
 }
