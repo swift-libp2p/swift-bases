@@ -100,4 +100,10 @@ struct Base2Tests {
         let encoded = try #require(input.binaryEncoded(using: .utf8))
         #expect(encoded.binaryDecodedString == input)
     }
+
+    /// Compiles only if the public error type is Sendable.
+    @Test func testSendableConformances() {
+        let _: any Sendable = Base2Error.invalidBinaryCharacter
+        let _: any Sendable = Base2Error.invalidBinaryLength
+    }
 }

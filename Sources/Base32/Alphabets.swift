@@ -48,17 +48,17 @@ protocol Alphabet {
     func character(encoding quintet: Quintet) -> Quintet
     func quintet(decoding char: EncodedChar) throws -> Quintet
 }
-public enum NullCharOpts {
+public enum NullCharOpts: Sendable {
     case drop
     case encode
 }
 
-public enum LetterCase {
+public enum LetterCase: Sendable {
     case upper
     case lower
 }
 
-public enum Base32Options {
+public enum Base32Options: Sendable {
     case pad(Bool)
     case nullChar(NullCharOpts)
     case letterCase(LetterCase)
@@ -102,7 +102,7 @@ extension String {
     }
 }
 
-public enum Variant {
+public enum Variant: Sendable {
     case standard
     case hex
     case z

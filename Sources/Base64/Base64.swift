@@ -29,7 +29,7 @@ import Foundation
 /// Decoding is padding-tolerant: it accepts input with or without trailing `=`, so the
 /// unpadded (`m`/`u`) forms round-trip correctly.
 public enum Base64 {
-    public enum Error: Swift.Error {
+    public enum Error: Swift.Error, Sendable {
         /// The input contains characters that are not valid for the selected base64 variant,
         /// or is otherwise malformed.
         case invalidCharacter
@@ -38,7 +38,7 @@ public enum Base64 {
     }
 
     /// Which base64 alphabet to use.
-    public enum Variant {
+    public enum Variant: Sendable {
         /// Standard RFC 4648 alphabet using `+` and `/` (multibase `m` / `M`).
         case standard
         /// URL- and filename-safe alphabet using `-` and `_` (multibase `u` / `U`).

@@ -15,13 +15,13 @@
 import Foundation
 
 public enum Base8 {
-    public enum NullCharOpts {
+    public enum NullCharOpts: Sendable {
         case drop
         case encode
         case literal
     }
 
-    public enum Base8Options {
+    public enum Base8Options: Sendable {
         case pad(Bool)
         case nullChar(NullCharOpts)
     }
@@ -212,7 +212,7 @@ public enum Base8 {
         return (encodedByteCount / encodedBlockSize) * unencodedBlockSize + extraDecodedBytes
     }
 
-    public enum Error: Swift.Error {
+    public enum Error: Swift.Error, Sendable {
         /// The input string ends with an incomplete encoded block
         case incompleteBlock
         /// The input string contains a character not in the encoding alphabet

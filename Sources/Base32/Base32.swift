@@ -235,7 +235,7 @@ public enum Base32 {
         return (encodedByteCount / encodedBlockSize) * unencodedBlockSize + extraDecodedBytes
     }
 
-    public enum Error: Swift.Error {
+    public enum Error: Swift.Error, Sendable {
         /// The input string ends with an incomplete encoded block
         case incompleteBlock
         /// The input string contains a character not in the encoding alphabet

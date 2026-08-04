@@ -14,7 +14,7 @@
 
 import Foundation
 
-public enum Base2Error: Error {
+public enum Base2Error: Error, Sendable {
     case invalidBinaryCharacter
     /// The binary string's length (after removing spaces) is not a multiple of 8,
     /// so it does not represent a whole number of bytes.

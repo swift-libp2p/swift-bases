@@ -111,4 +111,10 @@ struct Base64Tests {
         #expect(try Data(base64URLEncoded: "____") == data)
         #expect(try Data(base64URLEncoded: Data("____".utf8)) == data)
     }
+
+    /// Compiles only if the public variant/error types are Sendable.
+    @Test func testSendableConformances() {
+        let _: any Sendable = Base64.Variant.url
+        let _: any Sendable = Base64.Error.invalidCharacter
+    }
 }

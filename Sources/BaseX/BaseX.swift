@@ -43,12 +43,12 @@ private struct AlphabetBase {
 }
 
 public enum BaseX {
-    public enum BaseXError: Error {
+    public enum BaseXError: Error, Sendable {
         case invalidStringEncoding
         case invalidCharacter
     }
 
-    public enum Alphabets: Equatable {
+    public enum Alphabets: Equatable, Sendable {
         case base10Decimal
         case base16Hex
         case base16HexUpper
