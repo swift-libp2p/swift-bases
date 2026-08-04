@@ -167,11 +167,7 @@ public enum BaseX {
 
     public static func encode(_ data: Data, into base: BaseX.Alphabets) -> String {
         guard base == .base16Hex || base == .base16HexUpper else { return BaseX.encodeALT(data, into: base) }
-        if base == .base16Hex {
-            return [UInt8](data).toHexString()
-        } else {
-            return [UInt8](data).toHexString().uppercased()
-        }
+        return [UInt8](data).toHexString(uppercase: base == .base16HexUpper)
     }
 
     static func decodeALT(
@@ -339,14 +335,23 @@ extension Array where Element == UInt8 {
         }
     }
 
-    func toHexString() -> String {
-        `lazy`.reduce(into: "") {
-            var s = String($1, radix: 16)
-            if s.count == 1 {
-                s = "0" + s
-            }
-            $0 += s
+    /// Renders the bytes as a hexadecimal string in a single pass.
+    ///
+    /// Uses a direct nibble→character lookup for the requested case, avoiding both the
+    /// per-byte `String(_, radix:)` allocations and the extra `.uppercased()` pass the
+    /// previous uppercase path incurred.
+    func toHexString(uppercase: Bool = false) -> String {
+        let alphabet: [UInt8] =
+            uppercase
+            ? Array("0123456789ABCDEF".utf8)
+            : Array("0123456789abcdef".utf8)
+        var chars = [UInt8]()
+        chars.reserveCapacity(count * 2)
+        for byte in self {
+            chars.append(alphabet[Int(byte >> 4)])
+            chars.append(alphabet[Int(byte & 0x0F)])
         }
+        return String(decoding: chars, as: UTF8.self)
     }
 }
 
