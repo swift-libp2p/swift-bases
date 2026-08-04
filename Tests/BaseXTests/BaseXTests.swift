@@ -190,6 +190,23 @@ struct BaseXTests {
         #expect(try BaseX.decode("117Pznk19XTTzBtx", as: .base58Flickr) == testStringTwoLeadingZeros)
     }
 
+    /// Base16 decode previously returned an empty `Data` on invalid characters and
+    /// mis-decoded odd-length input. It should now throw like every other base.
+    @Test func testBase16DecodeRejectsInvalidInput() throws {
+        #expect(throws: BaseX.BaseXError.invalidCharacter) {
+            try BaseX.decode("zz", as: .base16Hex)
+        }
+        // Odd number of hex digits is not a whole number of bytes.
+        #expect(throws: BaseX.BaseXError.invalidCharacter) {
+            try BaseX.decode("abc", as: .base16Hex)
+        }
+        #expect(throws: BaseX.BaseXError.invalidCharacter) {
+            try BaseX.decode("GG", as: .base16HexUpper)
+        }
+        // Valid hex still decodes.
+        #expect(try BaseX.decode("796573206d616e692021", as: .base16Hex) == testString)
+    }
+
     /// A valid custom alphabet should round-trip through the generic encode/decode path.
     @Test func testCustomAlphabetRoundTrips() throws {
         let alphabet = "0123456789abcdef"
