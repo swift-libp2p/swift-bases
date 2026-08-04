@@ -79,6 +79,12 @@ public enum BaseX {
             }
         }
 
+        /// Number of encoded characters that represent a single leading zero byte.
+        ///
+        /// Note: the only values that return `2` are the base16 variants, and those are
+        /// always handled by the dedicated hex path in `encode`/`decode` (never by
+        /// `encodeALT`/`decodeALT`). In practice the generic ALT routines therefore only
+        /// ever observe `charsPerBit == 1`; the `== 2` branches within them are unreachable.
         fileprivate var charsPerBit: Int {
             switch self {
             case .base16Hex: return 2
