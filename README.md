@@ -128,6 +128,19 @@ Base32.encode("hello world", variant: .z, options: .letterCase(.lower), .pad(fal
 try Base32.decodeToString("d1imor3f41rmusjccg", variant: .hex) // -> "hello world"
 // Note: Base32.decode(_:) returns the raw Data; use decodeToString(_:) for a String.
 
+
+import Base64
+
+/// Standard, padded (multibase `M`)
+Base64.encode("yes mani !")                                     // -> "eWVzIG1hbmkgIQ=="
+/// Standard, no padding (multibase `m`)
+Base64.encode("yes mani !", pad: false)                         // -> "eWVzIG1hbmkgIQ"
+/// URL-safe, no padding (multibase `u`)
+Base64.encode("yes mani !", variant: .url, pad: false)          // -> "eWVzIG1hbmkgIQ"
+
+/// Decoding is padding-tolerant (accepts padded or unpadded input)
+try Base64.decodeToString("eWVzIG1hbmkgIQ", variant: .standard) // -> "yes mani !"
+
 ```
 
 ### API
@@ -161,13 +174,19 @@ Base32.encode(_ data:Data, variant:Variant = .standard, options:Base32Options...
 Base32.decode(_ string: String, variant:Variant = .standard) throws -> Data
 Base32.decodeToString(_ string:String, variant:Variant = .standard, using:String.Encoding = .ascii) throws -> String
 
-/// Base64
+/// Base64 (multibase variants: m, M, u, U)
+Base64.encode(_ data:Data, variant:Base64.Variant = .standard, pad:Bool = true) -> String
+Base64.encode(_ str:String, variant:Base64.Variant = .standard, pad:Bool = true) -> String
+Base64.decode(_ string:String, variant:Base64.Variant = .standard) throws -> Data
+Base64.decodeToString(_ string:String, variant:Base64.Variant = .standard, using:String.Encoding = .utf8) throws -> String
+
+/// Base64 convenience extensions
 String.base64CompliantString // Ensures the base64 string is padded correctly
 Data.base64URLEncoded(padded:Bool = true) -> String // Swaps "/" with "_", and "+" with "-"
 Data.base64Encoded(padded:Bool = true) -> String
 Data.base64URLPadEncodedData() -> Data? // The padded base64url string, as UTF-8 Data
-Data?(base64URLEncoded: String)
-Data?(base64URLEncoded: Data)
+Data(base64URLEncoded: String) throws
+Data(base64URLEncoded: Data) throws
 
 ```
 
