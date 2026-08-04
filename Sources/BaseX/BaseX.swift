@@ -16,6 +16,13 @@ import Foundation
 
 private func buildAlphabetBase(_ alphabet: String) -> AlphabetBase {
     let characters = Array(alphabet)
+    // A usable positional alphabet needs at least a radix of 2, and every character
+    // must be distinct (duplicates would silently corrupt the decode lookup map).
+    precondition(characters.count >= 2, "BaseX alphabet must contain at least 2 characters")
+    precondition(
+        Set(characters).count == characters.count,
+        "BaseX alphabet must not contain duplicate characters"
+    )
     let indexed: [Character] = characters.map { $0 }
     var tmpMap = [Character: UInt]()
     var i: UInt = 0

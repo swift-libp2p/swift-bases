@@ -190,6 +190,13 @@ struct BaseXTests {
         #expect(try BaseX.decode("117Pznk19XTTzBtx", as: .base58Flickr) == testStringTwoLeadingZeros)
     }
 
+    /// A valid custom alphabet should round-trip through the generic encode/decode path.
+    @Test func testCustomAlphabetRoundTrips() throws {
+        let alphabet = "0123456789abcdef"
+        let encoded = try BaseX.encode(testString, into: .custom(alphabet))
+        #expect(try BaseX.decode(encoded, as: .custom(alphabet)) == testString)
+    }
+
     /// Used to generate the example usage in our readme
     @Test(.disabled())
     func testBaseXExampleReadme() throws {
