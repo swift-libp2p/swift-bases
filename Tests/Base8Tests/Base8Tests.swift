@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Foundation
 import Testing
 
 @testable import Base8
@@ -72,6 +73,21 @@ struct Base8Tests {
     @Test func testEncodeWithOptions() {
         #expect(Base8.encode("yes mani !", options: .pad(true)) == "362625631006654133464440102=====")
         #expect(Base8.encode("yes mani !", options: .pad(false)) == "362625631006654133464440102")
+    }
+
+    /// Non-ASCII input previously trapped because `encode(String)` force-unwrapped
+    /// `data(using: .ascii)`. It now encodes via UTF-8 and round-trips.
+    @Test func testEncodeNonASCIIDoesNotCrash() throws {
+        let input = "café 🚀"
+        let encoded = Base8.encode(input)
+        let decoded = try Base8.decode(encoded)
+        #expect(decoded == Data(input.utf8))
+    }
+
+    /// Empty input previously risked force-unwrapping the base address of a zero-byte
+    /// allocation. It should decode to empty `Data`.
+    @Test func testDecodeEmptyReturnsEmptyData() throws {
+        #expect(try Base8.decode("") == Data())
     }
 
     /// The Base8 alphabet is '0'-'7'. Character '8' (ASCII 56) must be rejected;

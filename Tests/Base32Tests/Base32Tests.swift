@@ -138,6 +138,19 @@ struct Base32Tests {
         if debug { print("-----------------------------------------------------") }
     }
 
+    /// Non-ASCII input previously trapped because `encode(String)` force-unwrapped
+    /// `data(using: .ascii)`. It now encodes via UTF-8 and round-trips.
+    @Test func testEncodeNonASCIIDoesNotCrash() throws {
+        let input = "café 🚀"
+        let encoded = Base32.encode(input)
+        let decoded = try Base32.decode(encoded)
+        #expect(decoded == Data(input.utf8))
+    }
+    
+    @Test func testDecodeEmptyReturnsEmptyData() throws {
+        #expect(try Base32.decode("") == Data())
+    }
+
     @Test func testDecodeStandardRejectsOutOfRangeLetters() {
         for c in ["0", "1", "8", "9", "!", "&", "#"] {
             #expect(throws: Base32.Error.nonAlphabetCharacter, "expected '\(c)' to be rejected") {
