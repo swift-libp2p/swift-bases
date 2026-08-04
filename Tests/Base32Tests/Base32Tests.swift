@@ -146,7 +146,7 @@ struct Base32Tests {
         let decoded = try Base32.decode(encoded)
         #expect(decoded == Data(input.utf8))
     }
-    
+
     @Test func testDecodeEmptyReturnsEmptyData() throws {
         #expect(try Base32.decode("") == Data())
     }
