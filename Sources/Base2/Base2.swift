@@ -31,11 +31,8 @@ extension String {
         let s = self.replacingOccurrences(of: " ", with: "")
         guard s.filter({ $0 == "0" || $0 == "1" }).count == s.count, s.count % 8 == 0 else { return Data() }
         var bytes: [UInt8] = []
-        var zeros = 0
         for byte in s.chunked(into: 8) {
             if let u = UInt8(byte, radix: 2) {
-                //print("Binary Byte: \(byte) => \(u)")
-                if u == 0 { zeros += 1 }
                 bytes.append(u)
             }
         }
@@ -79,11 +76,8 @@ extension Array where Element == UInt8 {
         guard s.filter({ $0 == "0" || $0 == "1" }).count == s.count else { throw Base2Error.invalidBinaryCharacter }
         guard s.count % 8 == 0 else { throw Base2Error.invalidBinaryLength }
         self = []
-        var zeros = 0
         for byte in s.chunked(into: 8) {
             if let u = UInt8(byte, radix: 2) {
-                //print("Binary Byte: \(byte) => \(u)")
-                if u == 0 { zeros += 1 }
                 self.append(u)
             }
         }
