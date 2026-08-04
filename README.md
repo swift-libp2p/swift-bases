@@ -63,14 +63,15 @@ let package = Package(
 ```Swift
 import Base2
 
-let binaryEncoded = "Hello World".binaryEncoded(using: .utf8, spacing: true) // -> "01001000 01100101 01101100 01101100 01101111 00100000 01010111 01101111 01110010 01101100 01100100"
+let binaryEncoded = "Hello World".binaryEncoded(using: .utf8, byteSpacing: true) // -> "01001000 01100101 01101100 01101100 01101111 00100000 01010111 01101111 01110010 01101100 01100100"
 let decoded = binaryEncoded.binaryDecodedString // -> optional("Hello World")
 
 
 import Base8
 
-let base8Encoded = Base8.encode("hello world") // -> 320625543306744035667562330620==
-let base8Decoded = Base8.decode("320625543306744035667562330620") // -> "hello world"
+let base8Encoded = Base8.encode("hello world") // -> "320625543306744035667562330620=="
+let base8Decoded = try Base8.decodeToString("320625543306744035667562330620") // -> "hello world"
+// Note: Base8.decode(_:) returns the raw Data; use decodeToString(_:) for a String.
 
 
 import BaseX
@@ -124,7 +125,8 @@ Base32.encode("hello world", variant: .hex, options: .letterCase(.lower), .pad(f
 Base32.encode("hello world", variant: .z, options: .letterCase(.lower), .pad(false)) // -> "pb1sa5dxrb5s6hucco"
 
 /// Decoding
-try Base32.decode("d1imor3f41rmusjccg", variant: .hex) // -> "hello world"
+try Base32.decodeToString("d1imor3f41rmusjccg", variant: .hex) // -> "hello world"
+// Note: Base32.decode(_:) returns the raw Data; use decodeToString(_:) for a String.
 
 ```
 
@@ -163,7 +165,9 @@ Base32.decodeToString(_ string:String, variant:Variant = .standard, using:String
 String.base64CompliantString // Ensures the base64 string is padded correctly
 Data.base64URLEncoded(padded:Bool = true) -> String // Swaps "/" with "_", and "+" with "-"
 Data.base64Encoded(padded:Bool = true) -> String
+Data.base64URLPadEncodedData() -> Data? // The padded base64url string, as UTF-8 Data
 Data?(base64URLEncoded: String)
+Data?(base64URLEncoded: Data)
 
 ```
 
