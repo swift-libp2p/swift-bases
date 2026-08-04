@@ -177,7 +177,6 @@ public enum Base8 {
                     decodedBytes[decodedWriteOffset + 1] = bytes.1
                     decodedBytes[decodedWriteOffset + 2] = bytes.2
                 default:
-                    print("Incomplete Block: case -> \(min(encodedByteCount - encodedReadOffset, encodedBlockSize))")
                     throw Base8.Error.incompleteBlock
                 }
 
@@ -208,7 +207,6 @@ public enum Base8 {
         case 6:
             extraDecodedBytes = 2
         default:
-            print("Incomplete Block: case -> \(extraEncodedBytes))")
             throw Error.incompleteBlock
         }
         return (encodedByteCount / encodedBlockSize) * unencodedBlockSize + extraDecodedBytes
