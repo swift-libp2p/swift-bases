@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Foundation
 import Testing
 
 @testable import Base2
@@ -76,5 +77,27 @@ struct Base2Tests {
 
         let decoded = encoded.binaryDecoded
         #expect(testData == decoded)
+    }
+
+    @Test func testDecodeRejectsInvalidCharacters() {
+        #expect(throws: Base2Error.invalidBinaryCharacter) {
+            try Data(binaryString: "0000000X")
+        }
+    }
+
+    /// A binary string whose length isn't a multiple of 8 doesn't represent whole bytes.
+    @Test func testDecodeRejectsNonByteAlignedLength() {
+        #expect(throws: Base2Error.invalidBinaryLength) {
+            try Data(binaryString: "101")
+        }
+        // The lenient computed property returns empty Data for the same input.
+        #expect("101".binaryDecoded == Data())
+    }
+
+    /// `binaryDecodedString` now decodes as UTF-8, so multi-byte scalars round-trip.
+    @Test func testBinaryDecodedStringHandlesUTF8() throws {
+        let input = "café 🚀"
+        let encoded = try #require(input.binaryEncoded(using: .utf8))
+        #expect(encoded.binaryDecodedString == input)
     }
 }
