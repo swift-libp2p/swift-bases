@@ -124,7 +124,7 @@ public enum Base32 {
         guard let encodedData = string.data(using: String.Encoding.ascii) else {
             throw Error.nonAlphabetCharacter
         }
-        let encodedByteCount = nonPaddingByteCount(encodedData: encodedData)
+        let encodedByteCount = nonPaddingByteCount(encodedData: encodedData, variant: variant)
 
         let decodedByteCount = try byteCount(decoding: encodedByteCount)
         // Empty (or all-padding) input decodes to no bytes. Return early so we don't
@@ -207,7 +207,7 @@ public enum Base32 {
         return Data(bytesNoCopy: decodedBytes.baseAddress!, count: decodedByteCount, deallocator: .free)
     }
 
-    private static func nonPaddingByteCount(encodedData: Data, variant: Variant = .standard) -> Int {
+    private static func nonPaddingByteCount(encodedData: Data, variant: Variant) -> Int {
         let paddingCharacter = variant.alphabet.paddingCharacter
         if let lastNonPaddingCharacterIndex = encodedData.lastIndex(where: { $0 != paddingCharacter }) {
             return lastNonPaddingCharacterIndex + 1
