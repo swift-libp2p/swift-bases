@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -12,30 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
+import BasesCore
 
 internal typealias EncodedChar = UInt8
 
-protocol Alphabet {
-    static var paddingCharacter: EncodedChar { get }
+/// The character that pads a partial final block.
+internal let paddingCharacter: EncodedChar = Alphabet.paddingCharacter
 
-    func character(encoding quintet: Quintet) -> Quintet
-    func quintet(decoding char: EncodedChar) throws -> Quintet
-}
-
-struct Base8Alphabet: Alphabet {
-    static let paddingCharacter: EncodedChar = 61
-    private let encodingTable: [EncodedChar] = ["0", "1", "2", "3", "4", "5", "6", "7"]
-        .map { (c: UnicodeScalar) -> EncodedChar in EncodedChar(c.value) }
-
-    func character(encoding quintet: Quintet) -> EncodedChar {
-        encodingTable[Int(quintet)]
-    }
-
-    func quintet(decoding char: EncodedChar) throws -> Quintet {
-        guard case 48...55 = char else {
-            throw Base8.Error.nonNumericCharacter
-        }
-        return char - 48
-    }
+extension Base8 {
+    /// The base8 alphabet, `0` through `7`.
+    public static let alphabet = Alphabet("01234567")
 }

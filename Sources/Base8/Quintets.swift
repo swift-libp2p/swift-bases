@@ -112,35 +112,3 @@ private func seventhQuintet(thirdByte: Byte) -> Quintet {
 private func eighthQuintet(thirdByte: Byte) -> Quintet {
     (thirdByte & 0b00000111)
 }
-
-//private func secondQuintet(firstByte: Byte, secondByte: Byte) -> Quintet {
-//    return ((firstByte & 0b00000111) << 2)
-//        | ((secondByte & 0b11000000) >> 6)
-//}
-
-//private func thirdQuintet(secondByte: Byte) -> Quintet {
-//    return ((secondByte & 0b00111110) >> 1)
-//}
-
-//private func fourthQuintet(secondByte: Byte, thirdByte: Byte) -> Quintet {
-//    return ((secondByte & 0b00000001) << 4)
-//        | ((thirdByte & 0b11110000) >> 4)
-//}
-
-//private func fifthQuintet(thirdByte: Byte, fourthByte: Byte) -> Quintet {
-//    return ((thirdByte & 0b00001111) << 1)
-//        | ((fourthByte & 0b10000000) >> 7)
-//}
-
-//private func sixthQuintet(fourthByte: Byte) -> Quintet {
-//    return ((fourthByte & 0b01111100) >> 2)
-//}
-
-//private func seventhQuintet(fourthByte: Byte, fifthByte: Byte) -> Quintet {
-//    return ((fourthByte & 0b00000011) << 3)
-//        | ((fifthByte & 0b11100000) >> 5)
-//}
-//
-//private func eighthQuintet(fifthByte: Byte) -> Quintet {
-//    return (fifthByte & 0b00011111)
-//}
