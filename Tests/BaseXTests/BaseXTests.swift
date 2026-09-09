@@ -193,14 +193,14 @@ struct BaseXTests {
     /// Base16 decode previously returned an empty `Data` on invalid characters and
     /// mis-decoded odd-length input. It should now throw like every other base.
     @Test func testBase16DecodeRejectsInvalidInput() throws {
-        #expect(throws: BaseX.BaseXError.invalidCharacter) {
+        #expect(throws: BasesError.nonAlphabetCharacter) {
             try BaseX.decode("zz", as: .base16Hex)
         }
         // Odd number of hex digits is not a whole number of bytes.
-        #expect(throws: BaseX.BaseXError.invalidCharacter) {
+        #expect(throws: BasesError.invalidLength) {
             try BaseX.decode("abc", as: .base16Hex)
         }
-        #expect(throws: BaseX.BaseXError.invalidCharacter) {
+        #expect(throws: BasesError.nonAlphabetCharacter) {
             try BaseX.decode("GG", as: .base16HexUpper)
         }
         // Valid hex still decodes.
