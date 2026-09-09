@@ -264,27 +264,36 @@ public enum BaseX {
         guard digitCount > 0 else { return .success([]) }
 
         return alphabet.withDecodingTable { table in
+            let end = characters.count
             var failure: BasesError? = nil
             let bytes = [UInt8](unsafeUninitializedCapacity: digitCount / 2) { bytes, initializedCount in
+                // Operate on a pair of digits in a single pass.
+                var index = start
                 var writeOffset = 0
-                var high: UInt8? = nil
-                for index in start..<characters.count {
-                    let nibble = table[Int(characters[index])]
-                    guard nibble != Alphabet.sentinel else {
+                while index + 1 < end {
+                    let high = table[Int(characters[index])]
+                    let low = table[Int(characters[index + 1])]
+                    // Every hex value is < 16 and the sentinel is 0xFF, so one comparison
+                    // rejects either character.
+                    guard (high | low) < 0x10 else {
                         failure = .nonAlphabetCharacter
                         break
                     }
-                    if let first = high {
-                        bytes[writeOffset] = first << 4 | nibble
-                        writeOffset += 1
-                        high = nil
-                    } else {
-                        high = nibble
-                    }
+                    bytes[writeOffset] = high << 4 | low
+                    writeOffset += 1
+                    index += 2
                 }
-                // A leftover nibble means an odd number of hex digits.
-                if failure == nil && high != nil { failure = .invalidLength }
                 initializedCount = writeOffset
+
+                // An odd number of digits leaves one behind. Report a bad character in
+                // preference to the length, matching the order the per-character loop
+                // reported them in.
+                if failure == nil, index < end {
+                    failure =
+                        table[Int(characters[index])] == Alphabet.sentinel
+                        ? .nonAlphabetCharacter
+                        : .invalidLength
+                }
             }
             if let failure { return .failure(failure) }
             return .success(bytes)
