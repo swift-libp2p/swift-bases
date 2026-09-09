@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -37,225 +37,189 @@
 //  SOFTWARE.
 //
 
-import Foundation
+@_exported import BasesCore
 
+/// Base32 encoding, five bytes become eight characters, padded with `=`.
+///
+/// Three alphabets are supported through ``Variant``:
+/// - RFC 4648 base32
+/// - RFC 4648 "extended hex" base32
+/// - z-base-32
+///
+/// ```swift
+/// Base32.encodedString(Array("hi libp2p!".utf8), letterCase: .lower, pad: .unpadded)
+/// // "nbusa3djmjyde4bb"
+/// try Base32.decode("NBUSA3DJMJYDE4BB")
+/// ```
 public enum Base32 {
+
     /// The size of a block before encoding, measured in bytes.
     private static let unencodedBlockSize = 5
-    /// The size of a block after encoding, measured in bytes.
+
+    /// The size of a block after encoding, measured in characters.
     private static let encodedBlockSize = 8
 
-    public static func encode(_ str: String, variant: Variant = .standard, options: Base32Options...) -> String {
-        // Encode via UTF-8 so non-ASCII input is handled instead of trapping.
-        // A Swift String's UTF-8 view is always available, so this never fails.
-        // ASCII input produces identical bytes to the previous `.ascii` encoding.
-        self.encode(Data(str.utf8), variant: variant, options: options)
-    }
-    public static func encode(_ data: Data, variant: Variant = .standard, options: Base32Options...) -> String {
-        encode(data, variant: variant, options: options)
-    }
+    // MARK: - Encoding
 
+    /// Encodes bytes as base32 characters.
+    ///
+    /// - Parameters:
+    ///   - bytes: The bytes to encode.
+    ///   - variant: Which base32 alphabet to use.
+    ///   - letterCase: The case to render letters in. Defaults to the variant's natural case
+    ///     - upper for ``Variant/standard`` and ``Variant/hex``
+    ///     - lower for ``Variant/z``.
+    ///   - pad: Whether to pad the final block out to eight characters with `=`.
+    /// - Returns: The encoded characters as ASCII bytes.
     public static func encode(
-        _ d: Data,
+        _ bytes: some Collection<UInt8>,
         variant: Variant = .standard,
-        options: [Base32Options] = [.letterCase(.upper), .pad(true), .nullChar(.encode)]
+        letterCase: LetterCase? = nil,
+        pad: PadOption = .padded
+    ) -> [UInt8] {
+        let unencodedByteCount = bytes.count
+        guard unencodedByteCount > 0 else { return [] }
+
+        let alphabet = variant.alphabet(letterCase)
+        let blockCount = (unencodedByteCount + unencodedBlockSize - 1) / unencodedBlockSize
+        var characters = [EncodedChar](repeating: paddingCharacter, count: blockCount * encodedBlockSize)
+
+        var block = [Byte](repeating: 0, count: unencodedBlockSize)
+        var filled = 0
+        var offset = 0
+        for byte in bytes {
+            block[filled] = byte
+            filled += 1
+            if filled == unencodedBlockSize {
+                write(encodeBlock(block, count: filled, using: alphabet), into: &characters, at: offset)
+                offset += encodedBlockSize
+                filled = 0
+            }
+        }
+        if filled > 0 {
+            write(encodeBlock(block, count: filled, using: alphabet), into: &characters, at: offset)
+            if pad == .unpadded {
+                characters.removeLast(encodedBlockSize - characterCount(encoding: filled))
+            }
+        }
+        return characters
+    }
+
+    /// Encodes bytes as a base32 `String`.
+    public static func encodedString(
+        _ bytes: some Collection<UInt8>,
+        variant: Variant = .standard,
+        letterCase: LetterCase? = nil,
+        pad: PadOption = .padded
     ) -> String {
-        let data = d.apply(options)
-        let unencodedByteCount = data.count
+        String(decoding: encode(bytes, variant: variant, letterCase: letterCase, pad: pad), as: UTF8.self)
+    }
 
-        let encodedByteCount = byteCount(encoding: unencodedByteCount)
-        let encodedBytes = UnsafeMutablePointer<EncodedChar>.allocate(capacity: encodedByteCount)
+    // MARK: - Decoding
 
-        data.withUnsafeBytes { unencodedBytes in
-            var encodedWriteOffset = 0
-            for unencodedReadOffset in stride(from: 0, to: unencodedByteCount, by: unencodedBlockSize) {
-                let nextBlockSize = min(unencodedBlockSize, unencodedByteCount - unencodedReadOffset)
-                let nextBlockSlice = unencodedBytes[unencodedReadOffset..<unencodedReadOffset + nextBlockSize]
-                let nextBlockBytes = UnsafeRawBufferPointer(rebasing: nextBlockSlice)
+    /// Decodes base32 characters into bytes.
+    ///
+    /// Decoding is case-insensitive and trailing `=` padding is optional, so every form that
+    /// ``encode(_:variant:letterCase:pad:)`` produces, decodes.
+    ///
+    /// - Throws:
+    ///   - ``BasesError/nonAlphabetCharacter`` for a character outside the variant's alphabet.
+    ///   - ``BasesError/incompleteBlock`` if the final block holds an invalid number of characters.
+    ///   - ``BasesError/strayBits`` if its unused bits are not zero.
+    public static func decode(
+        _ characters: some Collection<UInt8>,
+        variant: Variant = .standard
+    ) throws(BasesError) -> [UInt8] {
+        let alphabet = variant.decodingAlphabet
+        var bytes = [Byte]()
+        bytes.reserveCapacity(characters.count / encodedBlockSize * unencodedBlockSize + unencodedBlockSize)
 
-                let nextChars = encodeBlock(bytes: nextBlockBytes, using: variant.alphabet)
-                encodedBytes[encodedWriteOffset + 0] = nextChars.0
-                encodedBytes[encodedWriteOffset + 1] = nextChars.1
-                encodedBytes[encodedWriteOffset + 2] = nextChars.2
-                encodedBytes[encodedWriteOffset + 3] = nextChars.3
-                encodedBytes[encodedWriteOffset + 4] = nextChars.4
-                encodedBytes[encodedWriteOffset + 5] = nextChars.5
-                encodedBytes[encodedWriteOffset + 6] = nextChars.6
-                encodedBytes[encodedWriteOffset + 7] = nextChars.7
-
-                encodedWriteOffset += encodedBlockSize
+        var block = [EncodedChar](repeating: 0, count: encodedBlockSize)
+        var filled = 0
+        var sawPadding = false
+        for character in characters {
+            if character == paddingCharacter {
+                sawPadding = true
+                continue
+            }
+            // Padding only ever terminates the input; a character after it is malformed.
+            guard !sawPadding else { throw BasesError.nonAlphabetCharacter }
+            block[filled] = character
+            filled += 1
+            if filled == encodedBlockSize {
+                let decoded = try decodeBlock(
+                    block[0],
+                    block[1],
+                    block[2],
+                    block[3],
+                    block[4],
+                    block[5],
+                    block[6],
+                    block[7],
+                    using: alphabet
+                )
+                bytes.append(decoded.0)
+                bytes.append(decoded.1)
+                bytes.append(decoded.2)
+                bytes.append(decoded.3)
+                bytes.append(decoded.4)
+                filled = 0
             }
         }
 
-        // The Data instance takes ownership of the allocated bytes and will handle deallocation.
-        let encodedData = Data(
-            bytesNoCopy: encodedBytes,
-            count: encodedByteCount,
-            deallocator: .free
-        )
-        guard let encodedString = String(data: encodedData, encoding: .ascii) else {
-            fatalError("Internal Error: Encoded data could not be encoded as ASCII (\(encodedData))")
-        }
-
-        //print("Before Options: \(encodedString)")
-        //print("After Options: \(encodedString.apply(options))")
-        return encodedString.apply(options)
-    }
-
-    private static func byteCount(encoding unencodedByteCount: Int) -> Int {
-        let fullBlockCount = unencodedByteCount / unencodedBlockSize
-        let remainingRawBytes = unencodedByteCount % unencodedBlockSize
-        let blockCount = remainingRawBytes > 0 ? fullBlockCount + 1 : fullBlockCount
-        return blockCount * encodedBlockSize
-    }
-
-    public static func decodeToString(
-        _ string: String,
-        variant: Variant = .standard,
-        using strEncoding: String.Encoding = .ascii
-    ) throws -> String {
-        guard let str = String(data: try self.decode(string, variant: variant), encoding: strEncoding) else {
-            throw Base32.Error.nonAsciiCompliant
-        }
-        return str
-    }
-
-    public static func decode(_ string: String, variant: Variant = .standard) throws -> Data {
-        guard let encodedData = string.data(using: String.Encoding.ascii) else {
-            throw Error.nonAlphabetCharacter
-        }
-        let encodedByteCount = nonPaddingByteCount(encodedData: encodedData, variant: variant)
-
-        let decodedByteCount = try byteCount(decoding: encodedByteCount)
-        // Empty (or all-padding) input decodes to no bytes. Return early so we don't
-        // force-unwrap the base address of a zero-byte allocation.
-        guard decodedByteCount > 0 else { return Data() }
-        let decodedBytes = UnsafeMutableRawBufferPointer.allocate(
-            byteCount: decodedByteCount,
-            alignment: MemoryLayout<Byte>.alignment
-        )
-
-        try encodedData.withUnsafeBytes { rawBuffer in
-            let encodedChars: UnsafePointer<EncodedChar> = rawBuffer.bindMemory(to: EncodedChar.self).baseAddress!
-
-            var decodedWriteOffset = 0
-            for encodedReadOffset in stride(from: 0, to: encodedByteCount, by: encodedBlockSize) {
-                let chars = encodedChars + encodedReadOffset
-
-                switch min(encodedByteCount - encodedReadOffset, encodedBlockSize) {
-                case 2:
-                    let byte = try decodeBlock(chars[0], chars[1], using: variant.alphabet)
-                    decodedBytes[decodedWriteOffset + 0] = byte
-                case 4:
-                    let bytes = try decodeBlock(chars[0], chars[1], chars[2], chars[3], using: variant.alphabet)
-                    decodedBytes[decodedWriteOffset + 0] = bytes.0
-                    decodedBytes[decodedWriteOffset + 1] = bytes.1
-                case 5:
-                    let bytes = try decodeBlock(
-                        chars[0],
-                        chars[1],
-                        chars[2],
-                        chars[3],
-                        chars[4],
-                        using: variant.alphabet
-                    )
-                    decodedBytes[decodedWriteOffset + 0] = bytes.0
-                    decodedBytes[decodedWriteOffset + 1] = bytes.1
-                    decodedBytes[decodedWriteOffset + 2] = bytes.2
-                case 7:
-                    let bytes = try decodeBlock(
-                        chars[0],
-                        chars[1],
-                        chars[2],
-                        chars[3],
-                        chars[4],
-                        chars[5],
-                        chars[6],
-                        using: variant.alphabet
-                    )
-                    decodedBytes[decodedWriteOffset + 0] = bytes.0
-                    decodedBytes[decodedWriteOffset + 1] = bytes.1
-                    decodedBytes[decodedWriteOffset + 2] = bytes.2
-                    decodedBytes[decodedWriteOffset + 3] = bytes.3
-                case 8:
-                    let bytes =
-                        try decodeBlock(
-                            chars[0],
-                            chars[1],
-                            chars[2],
-                            chars[3],
-                            chars[4],
-                            chars[5],
-                            chars[6],
-                            chars[7],
-                            using: variant.alphabet
-                        )
-                    decodedBytes[decodedWriteOffset + 0] = bytes.0
-                    decodedBytes[decodedWriteOffset + 1] = bytes.1
-                    decodedBytes[decodedWriteOffset + 2] = bytes.2
-                    decodedBytes[decodedWriteOffset + 3] = bytes.3
-                    decodedBytes[decodedWriteOffset + 4] = bytes.4
-                default:
-                    throw Base32.Error.incompleteBlock
-                }
-
-                decodedWriteOffset += unencodedBlockSize
-            }
-        }
-
-        // The Data instance takes ownership of the allocated bytes and will handle deallocation.
-        return Data(bytesNoCopy: decodedBytes.baseAddress!, count: decodedByteCount, deallocator: .free)
-    }
-
-    private static func nonPaddingByteCount(encodedData: Data, variant: Variant) -> Int {
-        let paddingCharacter = variant.alphabet.paddingCharacter
-        if let lastNonPaddingCharacterIndex = encodedData.lastIndex(where: { $0 != paddingCharacter }) {
-            return lastNonPaddingCharacterIndex + 1
-        }
-        return 0
-    }
-
-    private static func byteCount(decoding encodedByteCount: Int) throws -> Int {
-        let extraEncodedBytes = encodedByteCount % encodedBlockSize
-        let extraDecodedBytes: Int
-        switch extraEncodedBytes {
+        switch filled {
         case 0:
-            extraDecodedBytes = 0
+            break
         case 2:
-            extraDecodedBytes = 1
+            bytes.append(try decodeBlock(block[0], block[1], using: alphabet))
         case 4:
-            extraDecodedBytes = 2
+            let decoded = try decodeBlock(block[0], block[1], block[2], block[3], using: alphabet)
+            bytes.append(decoded.0)
+            bytes.append(decoded.1)
         case 5:
-            extraDecodedBytes = 3
+            let decoded = try decodeBlock(block[0], block[1], block[2], block[3], block[4], using: alphabet)
+            bytes.append(decoded.0)
+            bytes.append(decoded.1)
+            bytes.append(decoded.2)
         case 7:
-            extraDecodedBytes = 4
+            let decoded = try decodeBlock(
+                block[0],
+                block[1],
+                block[2],
+                block[3],
+                block[4],
+                block[5],
+                block[6],
+                using: alphabet
+            )
+            bytes.append(decoded.0)
+            bytes.append(decoded.1)
+            bytes.append(decoded.2)
+            bytes.append(decoded.3)
         default:
-            throw Error.incompleteBlock
+            throw BasesError.incompleteBlock
         }
-        return (encodedByteCount / encodedBlockSize) * unencodedBlockSize + extraDecodedBytes
+        return bytes
     }
 
-    public enum Error: Swift.Error, Sendable {
-        /// The input string ends with an incomplete encoded block
-        case incompleteBlock
-        /// The input string contains a character not in the encoding alphabet
-        case nonAlphabetCharacter
-        /// The last encoded character has non-zero padding bits
-        /// https://tools.ietf.org/html/rfc4648#section-3.5
-        case strayBits
-        /// If we can't decode data into an Ascii string
-        case nonAsciiCompliant
-    }
-}
-
-extension Data {
-    /// Base32-encodes these bytes. Convenience wrapper around `Base32.encode(_:variant:options:)`.
-    public func base32Encoded(variant: Variant = .standard, options: Base32Options...) -> String {
-        Base32.encode(self, variant: variant, options: options)
+    /// Decodes a base32 `String` into bytes.
+    public static func decode(
+        _ string: some StringProtocol,
+        variant: Variant = .standard
+    ) throws(BasesError) -> [UInt8] {
+        try decode(string.utf8, variant: variant)
     }
 
-    /// Decodes a Base32 string into bytes. Convenience wrapper around `Base32.decode(_:variant:)`.
-    public init(base32Encoded string: String, variant: Variant = .standard) throws {
-        self = try Base32.decode(string, variant: variant)
+    // MARK: - Sizing
+
+    /// The number of significant characters a partial block of `byteCount` bytes produces.
+    private static func characterCount(encoding byteCount: Int) -> Int {
+        switch byteCount {
+        case 1: 2
+        case 2: 4
+        case 3: 5
+        case 4: 7
+        default: encodedBlockSize
+        }
     }
 }

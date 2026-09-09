@@ -37,6 +37,8 @@
 //  SOFTWARE.
 //
 
+import BasesCore
+
 internal func decodeBlock(
     _ c0: EncodedChar,
     _ c1: EncodedChar,
@@ -47,16 +49,16 @@ internal func decodeBlock(
     _ c6: EncodedChar,
     _ c7: EncodedChar,
     using a: Alphabet
-) throws -> (Byte, Byte, Byte, Byte, Byte) {
+) throws(BasesError) -> (Byte, Byte, Byte, Byte, Byte) {
     let q = (
-        try a.quintet(decoding: c0),
-        try a.quintet(decoding: c1),
-        try a.quintet(decoding: c2),
-        try a.quintet(decoding: c3),
-        try a.quintet(decoding: c4),
-        try a.quintet(decoding: c5),
-        try a.quintet(decoding: c6),
-        try a.quintet(decoding: c7)
+        try a.value(decoding: c0),
+        try a.value(decoding: c1),
+        try a.value(decoding: c2),
+        try a.value(decoding: c3),
+        try a.value(decoding: c4),
+        try a.value(decoding: c5),
+        try a.value(decoding: c6),
+        try a.value(decoding: c7)
     )
     return bytesFromQuintets(q.0, q.1, q.2, q.3, q.4, q.5, q.6, q.7)
 }
@@ -70,15 +72,15 @@ internal func decodeBlock(
     _ c5: EncodedChar,
     _ c6: EncodedChar,
     using a: Alphabet
-) throws -> (Byte, Byte, Byte, Byte) {
+) throws(BasesError) -> (Byte, Byte, Byte, Byte) {
     let q = (
-        try a.quintet(decoding: c0),
-        try a.quintet(decoding: c1),
-        try a.quintet(decoding: c2),
-        try a.quintet(decoding: c3),
-        try a.quintet(decoding: c4),
-        try a.quintet(decoding: c5),
-        try a.quintet(decoding: c6)
+        try a.value(decoding: c0),
+        try a.value(decoding: c1),
+        try a.value(decoding: c2),
+        try a.value(decoding: c3),
+        try a.value(decoding: c4),
+        try a.value(decoding: c5),
+        try a.value(decoding: c6)
     )
     return try bytesFromQuintets(q.0, q.1, q.2, q.3, q.4, q.5, q.6)
 }
@@ -90,13 +92,13 @@ internal func decodeBlock(
     _ c3: EncodedChar,
     _ c4: EncodedChar,
     using a: Alphabet
-) throws -> (Byte, Byte, Byte) {
+) throws(BasesError) -> (Byte, Byte, Byte) {
     let q = (
-        try a.quintet(decoding: c0),
-        try a.quintet(decoding: c1),
-        try a.quintet(decoding: c2),
-        try a.quintet(decoding: c3),
-        try a.quintet(decoding: c4)
+        try a.value(decoding: c0),
+        try a.value(decoding: c1),
+        try a.value(decoding: c2),
+        try a.value(decoding: c3),
+        try a.value(decoding: c4)
     )
     return try bytesFromQuintets(q.0, q.1, q.2, q.3, q.4)
 }
@@ -107,25 +109,25 @@ internal func decodeBlock(
     _ c2: EncodedChar,
     _ c3: EncodedChar,
     using a: Alphabet
-) throws -> (Byte, Byte) {
+) throws(BasesError) -> (Byte, Byte) {
     let q = (
-        try a.quintet(decoding: c0),
-        try a.quintet(decoding: c1),
-        try a.quintet(decoding: c2),
-        try a.quintet(decoding: c3)
+        try a.value(decoding: c0),
+        try a.value(decoding: c1),
+        try a.value(decoding: c2),
+        try a.value(decoding: c3)
     )
     return try bytesFromQuintets(q.0, q.1, q.2, q.3)
 }
 
-internal func decodeBlock(_ c0: EncodedChar, _ c1: EncodedChar, using a: Alphabet) throws -> (Byte) {
+internal func decodeBlock(_ c0: EncodedChar, _ c1: EncodedChar, using a: Alphabet) throws(BasesError) -> (Byte) {
     let q = (
-        try a.quintet(decoding: c0),
-        try a.quintet(decoding: c1)
+        try a.value(decoding: c0),
+        try a.value(decoding: c1)
     )
     return try bytesFromQuintets(q.0, q.1)
 }
 
-// MARK: -
+// MARK: - Bytes from Quintets
 
 private func bytesFromQuintets(
     _ first: Quintet,
@@ -154,9 +156,9 @@ private func bytesFromQuintets(
     _ fifth: Quintet,
     _ sixth: Quintet,
     _ seventh: Quintet
-) throws -> (Byte, Byte, Byte, Byte) {
+) throws(BasesError) -> (Byte, Byte, Byte, Byte) {
     guard seventh & 0b00111 == 0 else {
-        throw Base32.Error.strayBits
+        throw BasesError.strayBits
     }
     return (
         firstByte(firstQuintet: first, secondQuintet: second),
@@ -172,9 +174,9 @@ private func bytesFromQuintets(
     _ third: Quintet,
     _ fourth: Quintet,
     _ fifth: Quintet
-) throws -> (Byte, Byte, Byte) {
+) throws(BasesError) -> (Byte, Byte, Byte) {
     guard fifth & 0b00001 == 0 else {
-        throw Base32.Error.strayBits
+        throw BasesError.strayBits
     }
     return (
         firstByte(firstQuintet: first, secondQuintet: second),
@@ -188,9 +190,9 @@ private func bytesFromQuintets(
     _ second: Quintet,
     _ third: Quintet,
     _ fourth: Quintet
-) throws -> (Byte, Byte) {
+) throws(BasesError) -> (Byte, Byte) {
     guard fourth & 0b01111 == 0 else {
-        throw Base32.Error.strayBits
+        throw BasesError.strayBits
     }
     return (
         firstByte(firstQuintet: first, secondQuintet: second),
@@ -198,14 +200,14 @@ private func bytesFromQuintets(
     )
 }
 
-private func bytesFromQuintets(_ first: Quintet, _ second: Quintet) throws -> (Byte) {
+private func bytesFromQuintets(_ first: Quintet, _ second: Quintet) throws(BasesError) -> (Byte) {
     guard second & 0b00011 == 0 else {
-        throw Base32.Error.strayBits
+        throw BasesError.strayBits
     }
     return (firstByte(firstQuintet: first, secondQuintet: second))
 }
 
-// MARK: -
+// MARK: - Byte Getters
 
 private func firstByte(firstQuintet: Quintet, secondQuintet: Quintet) -> Byte {
     ((firstQuintet & 0b11111) << 3)

@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -37,13 +37,19 @@
 //  SOFTWARE.
 //
 
+import BasesCore
+
 internal typealias EncodedBlock = (
     EncodedChar, EncodedChar, EncodedChar, EncodedChar, EncodedChar,
     EncodedChar, EncodedChar, EncodedChar
 )
 
-internal func encodeBlock(bytes: UnsafeRawBufferPointer, using alphabet: Alphabet) -> EncodedBlock {
-    switch bytes.count {
+/// Encodes the first `count` bytes of `bytes` into a block of eight characters.
+///
+/// Reads from a plain byte buffer rather than the `UnsafeRawBufferPointer` this took
+/// before 0.4.0, so the caller no longer needs to route the input through `Data`.
+internal func encodeBlock(_ bytes: [Byte], count: Int, using alphabet: Alphabet) -> EncodedBlock {
+    switch count {
     case 1:
         return encodeBlock(bytes[0], using: alphabet)
     case 2:
@@ -55,8 +61,20 @@ internal func encodeBlock(bytes: UnsafeRawBufferPointer, using alphabet: Alphabe
     case 5:
         return encodeBlock(bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], using: alphabet)
     default:
-        fatalError("Cannot encode \(bytes.count) bytes. Max block size is five.")
+        fatalError("Cannot encode \(count) bytes. Max block size is five.")
     }
+}
+
+/// Writes an encoded block into `characters` starting at `offset`.
+internal func write(_ block: EncodedBlock, into characters: inout [EncodedChar], at offset: Int) {
+    characters[offset + 0] = block.0
+    characters[offset + 1] = block.1
+    characters[offset + 2] = block.2
+    characters[offset + 3] = block.3
+    characters[offset + 4] = block.4
+    characters[offset + 5] = block.5
+    characters[offset + 6] = block.6
+    characters[offset + 7] = block.7
 }
 
 private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, _ b3: Byte, _ b4: Byte, using a: Alphabet) -> EncodedBlock
@@ -82,7 +100,7 @@ private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, _ b3: Byte, using a
     let c4 = a.character(encoding: q.4)
     let c5 = a.character(encoding: q.5)
     let c6 = a.character(encoding: q.6)
-    let c7 = a.paddingCharacter
+    let c7 = paddingCharacter
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
 
@@ -93,9 +111,9 @@ private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, using a: Alphabet) 
     let c2 = a.character(encoding: q.2)
     let c3 = a.character(encoding: q.3)
     let c4 = a.character(encoding: q.4)
-    let c5 = a.paddingCharacter
-    let c6 = a.paddingCharacter
-    let c7 = a.paddingCharacter
+    let c5 = paddingCharacter
+    let c6 = paddingCharacter
+    let c7 = paddingCharacter
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
 
@@ -105,10 +123,10 @@ private func encodeBlock(_ b0: Byte, _ b1: Byte, using a: Alphabet) -> EncodedBl
     let c1 = a.character(encoding: q.1)
     let c2 = a.character(encoding: q.2)
     let c3 = a.character(encoding: q.3)
-    let c4 = a.paddingCharacter
-    let c5 = a.paddingCharacter
-    let c6 = a.paddingCharacter
-    let c7 = a.paddingCharacter
+    let c4 = paddingCharacter
+    let c5 = paddingCharacter
+    let c6 = paddingCharacter
+    let c7 = paddingCharacter
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
 
@@ -116,11 +134,11 @@ private func encodeBlock(_ b0: Byte, using a: Alphabet) -> EncodedBlock {
     let q = quintetsFromBytes(b0)
     let c0 = a.character(encoding: q.0)
     let c1 = a.character(encoding: q.1)
-    let c2 = a.paddingCharacter
-    let c3 = a.paddingCharacter
-    let c4 = a.paddingCharacter
-    let c5 = a.paddingCharacter
-    let c6 = a.paddingCharacter
-    let c7 = a.paddingCharacter
+    let c2 = paddingCharacter
+    let c3 = paddingCharacter
+    let c4 = paddingCharacter
+    let c5 = paddingCharacter
+    let c6 = paddingCharacter
+    let c7 = paddingCharacter
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
