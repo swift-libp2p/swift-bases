@@ -33,10 +33,11 @@ public enum BaseX {
     ///
     /// - Returns: The encoded characters as ASCII bytes.
     public static func encode(_ bytes: some Collection<UInt8>, into base: Alphabets) -> [UInt8] {
+        let alphabet = base.alphabet
         if base.isHex {
-            return hexEncode(bytes, using: base.alphabet)
+            return withByteBuffer(bytes) { hexEncode($0, using: alphabet) }
         }
-        return positionalEncode(bytes, using: base.alphabet)
+        return withByteBuffer(bytes) { positionalEncode($0, using: alphabet) }
     }
 
     /// Encodes bytes into the given alphabet as a `String`.
@@ -56,10 +57,10 @@ public enum BaseX {
         _ characters: some Collection<UInt8>,
         as base: Alphabets
     ) throws(BasesError) -> [UInt8] {
-        if base.isHex {
-            return try hexDecode(characters, using: base.alphabet)
+        switch withByteBuffer(characters, { decodeCore($0, as: base) }) {
+        case .success(let bytes): return bytes
+        case .failure(let error): throw error
         }
-        return try positionalDecode(characters, using: base.alphabet)
     }
 
     /// Decodes a `String` in the given alphabet into bytes.
@@ -67,81 +68,126 @@ public enum BaseX {
         _ string: some StringProtocol,
         as base: Alphabets
     ) throws(BasesError) -> [UInt8] {
-        try decode(string.utf8, as: base)
+        switch withByteBuffer(string, { decodeCore($0, as: base) }) {
+        case .success(let bytes): return bytes
+        case .failure(let error): throw error
+        }
+    }
+
+    /// The decoding entry point.
+    ///
+    /// Returns a `Result` rather than throwing because it runs inside the non-throwing
+    /// closure `withByteBuffer(_:_:)` requires. See that function's note.
+    private static func decodeCore(
+        _ characters: UnsafeBufferPointer<UInt8>,
+        as base: Alphabets
+    ) -> Result<[UInt8], BasesError> {
+        let alphabet = base.alphabet
+        if base.isHex {
+            return hexDecode(characters, using: alphabet)
+        }
+        return positionalDecode(characters, using: alphabet)
     }
 
     // MARK: - The general positional path
 
-    private static func positionalEncode(_ bytes: some Collection<UInt8>, using alphabet: Alphabet) -> [UInt8] {
-        guard !bytes.isEmpty else { return [] }
+    private static func positionalEncode(
+        _ bytes: UnsafeBufferPointer<UInt8>,
+        using alphabet: Alphabet
+    ) -> [UInt8] {
+        let byteCount = bytes.count
+        guard byteCount > 0 else { return [] }
         let radix = UInt(alphabet.radix)
 
         // Leading zero bytes carry no value in a positional encoding, so they are counted
         // out and re-added as leading zero digits afterwards.
-        let zeros = bytes.prefix(while: { $0 == 0 }).count
-        let significant = bytes.dropFirst(zeros)
+        var zeros = 0
+        while zeros < byteCount && bytes[zeros] == 0 { zeros += 1 }
 
         // Sized from ⌊log2(radix)⌋ up front, so the conversion never re-allocates.
         // The buffer holds the digits big-endian, right-aligned.
-        let size = alphabet.maximumDigitCount(forByteCount: significant.count)
+        let size = alphabet.maximumDigitCount(forByteCount: byteCount - zeros)
         var digits = [UInt8](repeating: 0, count: size)
         var length = 0
-        for byte in significant {
-            var carry = UInt(byte)
-            var written = 0
-            var index = size - 1
-            while carry != 0 || written < length {
-                carry += 256 * UInt(digits[index])
-                digits[index] = UInt8(carry % radix)
-                carry /= radix
-                written += 1
-                index -= 1
+        digits.withUnsafeMutableBufferPointer { digits in
+            for index in zeros..<byteCount {
+                var carry = UInt(bytes[index])
+                var written = 0
+                var position = size - 1
+                while carry != 0 || written < length {
+                    carry += 256 * UInt(digits[position])
+                    digits[position] = UInt8(carry % radix)
+                    carry /= radix
+                    written += 1
+                    position -= 1
+                }
+                length = written
             }
-            length = written
         }
 
-        var characters = [UInt8]()
-        characters.reserveCapacity(zeros + length)
-        characters.append(contentsOf: repeatElement(alphabet.leader, count: zeros))
-        for index in (size - length)..<size {
-            characters.append(alphabet.character(encoding: digits[index]))
+        let digitCount = zeros + length
+        return alphabet.withEncodingTable { table in
+            digits.withUnsafeBufferPointer { digits in
+                [UInt8](unsafeUninitializedCapacity: digitCount) { characters, initializedCount in
+                    let leader = table[0]
+                    for offset in 0..<zeros { characters[offset] = leader }
+                    for offset in 0..<length {
+                        characters[zeros + offset] = table[Int(digits[size - length + offset])]
+                    }
+                    initializedCount = digitCount
+                }
+            }
         }
-        return characters
     }
 
     private static func positionalDecode(
-        _ characters: some Collection<UInt8>,
+        _ characters: UnsafeBufferPointer<UInt8>,
         using alphabet: Alphabet
-    ) throws(BasesError) -> [UInt8] {
-        guard !characters.isEmpty else { return [] }
+    ) -> Result<[UInt8], BasesError> {
+        let characterCount = characters.count
+        guard characterCount > 0 else { return .success([]) }
         let radix = UInt(alphabet.radix)
         let leader = alphabet.leader
 
-        let zeros = characters.prefix(while: { $0 == leader }).count
-        let significant = characters.dropFirst(zeros)
+        var zeros = 0
+        while zeros < characterCount && characters[zeros] == leader { zeros += 1 }
 
-        let size = alphabet.maximumByteCount(forDigitCount: significant.count)
+        let size = alphabet.maximumByteCount(forDigitCount: characterCount - zeros)
         var buffer = [UInt8](repeating: 0, count: size)
         var length = 0
-        for character in significant {
-            var carry = UInt(try alphabet.value(decoding: character))
-            var written = 0
-            var index = size - 1
-            while carry != 0 || written < length {
-                carry += radix * UInt(buffer[index])
-                buffer[index] = UInt8(carry & 0xFF)
-                carry >>= 8
-                written += 1
-                index -= 1
-            }
-            length = written
-        }
 
-        var bytes = [UInt8]()
-        bytes.reserveCapacity(zeros + length)
-        bytes.append(contentsOf: repeatElement(0, count: zeros))
-        bytes.append(contentsOf: buffer[(size - length)..<size])
-        return bytes
+        let failure: BasesError? = alphabet.withDecodingTable { table in
+            buffer.withUnsafeMutableBufferPointer { buffer -> BasesError? in
+                for index in zeros..<characterCount {
+                    let value = table[Int(characters[index])]
+                    guard value != Alphabet.sentinel else { return .nonAlphabetCharacter }
+                    var carry = UInt(value)
+                    var written = 0
+                    var position = size - 1
+                    while carry != 0 || written < length {
+                        carry += radix * UInt(buffer[position])
+                        buffer[position] = UInt8(carry & 0xFF)
+                        carry >>= 8
+                        written += 1
+                        position -= 1
+                    }
+                    length = written
+                }
+                return nil
+            }
+        }
+        if let failure { return .failure(failure) }
+
+        let byteCount = zeros + length
+        return .success(
+            buffer.withUnsafeBufferPointer { buffer in
+                [UInt8](unsafeUninitializedCapacity: byteCount) { bytes, initializedCount in
+                    for offset in 0..<zeros { bytes[offset] = 0 }
+                    for offset in 0..<length { bytes[zeros + offset] = buffer[size - length + offset] }
+                    initializedCount = byteCount
+                }
+            }
+        )
     }
 
     // MARK: - The base16 fast path
@@ -150,46 +196,59 @@ public enum BaseX {
     // through the positional path made encoding and decoding quadratic, a 4KB payload took
     // over seven seconds. See `BaseXPerformance`.
 
-    private static func hexEncode(_ bytes: some Collection<UInt8>, using alphabet: Alphabet) -> [UInt8] {
-        var characters = [UInt8](repeating: 0, count: bytes.count * 2)
-        var offset = 0
-        for byte in bytes {
-            characters[offset] = alphabet.character(encoding: byte >> 4)
-            characters[offset + 1] = alphabet.character(encoding: byte & 0x0F)
-            offset += 2
+    private static func hexEncode(_ bytes: UnsafeBufferPointer<UInt8>, using alphabet: Alphabet) -> [UInt8] {
+        let byteCount = bytes.count
+        guard byteCount > 0 else { return [] }
+        return alphabet.withEncodingTable { table in
+            [UInt8](unsafeUninitializedCapacity: byteCount * 2) { characters, initializedCount in
+                var offset = 0
+                for byte in bytes {
+                    characters[offset] = table[Int(byte >> 4)]
+                    characters[offset + 1] = table[Int(byte & 0x0F)]
+                    offset += 2
+                }
+                initializedCount = byteCount * 2
+            }
         }
-        return characters
     }
 
     private static func hexDecode(
-        _ characters: some Collection<UInt8>,
+        _ characters: UnsafeBufferPointer<UInt8>,
         using alphabet: Alphabet
-    ) throws(BasesError) -> [UInt8] {
-        var bytes = [UInt8]()
-        bytes.reserveCapacity(characters.count / 2 + 1)
-
-        var index = characters.startIndex
+    ) -> Result<[UInt8], BasesError> {
         // Tolerate a "0x" prefix, as the pre-0.4.0 parser did.
-        if characters.count >= 2 {
-            let second = characters.index(after: index)
-            if characters[index] == UInt8(ascii: "0") && characters[second] == UInt8(ascii: "x") {
-                index = characters.index(after: second)
-            }
+        var start = 0
+        if characters.count >= 2, characters[0] == UInt8(ascii: "0"), characters[1] == UInt8(ascii: "x") {
+            start = 2
         }
+        let digitCount = characters.count - start
+        guard digitCount > 0 else { return .success([]) }
 
-        var high: UInt8? = nil
-        while index != characters.endIndex {
-            let nibble = try alphabet.value(decoding: characters[index])
-            if let first = high {
-                bytes.append(first << 4 | nibble)
-                high = nil
-            } else {
-                high = nibble
+        return alphabet.withDecodingTable { table in
+            var failure: BasesError? = nil
+            let bytes = [UInt8](unsafeUninitializedCapacity: digitCount / 2) { bytes, initializedCount in
+                var writeOffset = 0
+                var high: UInt8? = nil
+                for index in start..<characters.count {
+                    let nibble = table[Int(characters[index])]
+                    guard nibble != Alphabet.sentinel else {
+                        failure = .nonAlphabetCharacter
+                        break
+                    }
+                    if let first = high {
+                        bytes[writeOffset] = first << 4 | nibble
+                        writeOffset += 1
+                        high = nil
+                    } else {
+                        high = nibble
+                    }
+                }
+                // A leftover nibble means an odd number of hex digits.
+                if failure == nil && high != nil { failure = .invalidLength }
+                initializedCount = writeOffset
             }
-            index = characters.index(after: index)
+            if let failure { return .failure(failure) }
+            return .success(bytes)
         }
-        // A leftover nibble means an odd number of hex digits.
-        guard high == nil else { throw BasesError.invalidLength }
-        return bytes
     }
 }
