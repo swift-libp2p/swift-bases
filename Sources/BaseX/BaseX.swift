@@ -200,9 +200,6 @@ public enum BaseX {
     /// Converts `characters[start...]` from the alphabet's radix into `bytes`, base 256,
     /// big-endian and right-aligned in the buffer.
     ///
-    /// Standalone for the same reason as its encoding counterpart — see
-    /// ``convert(bytes:from:into:radix:)``.
-    ///
     /// - Returns: The number of significant bytes written, at the buffer's right edge, or
     ///   `nil` if a character was not in the alphabet.
     private static func convert(
