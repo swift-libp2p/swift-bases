@@ -88,29 +88,49 @@ public enum Base2 {
     ///   - ``BasesError/nonAlphabetCharacter`` for a character other than `0`, `1` or a space
     ///   - ``BasesError/invalidLength`` if the bits do not fill whole bytes.
     public static func decode(_ characters: some Collection<UInt8>) throws(BasesError) -> [UInt8] {
-        var bytes = [UInt8]()
-        bytes.reserveCapacity(characters.count / charactersPerByte + 1)
-
-        var accumulator: UInt8 = 0
-        var bits = 0
-        for character in characters {
-            if character == spaceCharacter { continue }
-            let bit = try alphabet.value(decoding: character)
-            accumulator = accumulator << 1 | bit
-            bits += 1
-            if bits == charactersPerByte {
-                bytes.append(accumulator)
-                accumulator = 0
-                bits = 0
-            }
+        switch withByteBuffer(characters, { decodeCore($0) }) {
+        case .success(let bytes): return bytes
+        case .failure(let error): throw error
         }
-        guard bits == 0 else { throw BasesError.invalidLength }
-        return bytes
     }
 
     /// Decodes a base2 `String` into bytes.
     public static func decode(_ string: some StringProtocol) throws(BasesError) -> [UInt8] {
-        try decode(string.utf8)
+        switch withByteBuffer(string, { decodeCore($0) }) {
+        case .success(let bytes): return bytes
+        case .failure(let error): throw error
+        }
+    }
+
+    /// The decoding hot loop.
+    ///
+    /// Returns a `Result` rather than throwing because it runs inside the non-throwing
+    /// closure `withByteBuffer(_:_:)` requires. See that function's note.
+    private static func decodeCore(
+        _ characters: UnsafeBufferPointer<UInt8>
+    ) -> Result<[UInt8], BasesError> {
+        alphabet.withDecodingTable { table in
+            // Spaces are dropped, so the decoded length is not known up front.
+            var bytes = [UInt8]()
+            bytes.reserveCapacity(characters.count / charactersPerByte + 1)
+
+            var accumulator: UInt8 = 0
+            var bits = 0
+            for character in characters {
+                if character == spaceCharacter { continue }
+                let bit = table[Int(character)]
+                guard bit != Alphabet.sentinel else { return .failure(.nonAlphabetCharacter) }
+                accumulator = accumulator << 1 | bit
+                bits += 1
+                if bits == charactersPerByte {
+                    bytes.append(accumulator)
+                    accumulator = 0
+                    bits = 0
+                }
+            }
+            guard bits == 0 else { return .failure(.invalidLength) }
+            return .success(bytes)
+        }
     }
 }
 
