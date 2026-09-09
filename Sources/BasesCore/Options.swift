@@ -28,7 +28,7 @@ public enum LetterCase: Sendable, Hashable {
 public enum PadOption: Sendable, Hashable {
     /// Emit the alphabet's padding character (`=`) until the final block is complete.
     case padded
-    
+
     /// Stop after the last significant character.
     case unpadded
 
@@ -43,10 +43,10 @@ public enum PadOption: Sendable, Hashable {
 public enum NullCharOption: Sendable, Hashable {
     /// Drop leading null bytes, so they are not represented in the output at all.
     case drop
-    
+
     /// Encode leading null bytes like any other byte.
     case encode
-    
+
     /// Encode leading null bytes like any other byte.
     ///
     /// A synonym of ``encode``, kept because `Base8` spelled the option this way.

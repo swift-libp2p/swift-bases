@@ -59,7 +59,7 @@ public struct Alphabet: Hashable, Sendable {
 
     /// Whether ``decodingTable`` also maps the opposite case of each letter.
     public let isCaseInsensitive: Bool
-    
+
     /// Builds an alphabet from its digits, in value order.
     ///
     /// - Parameters:
