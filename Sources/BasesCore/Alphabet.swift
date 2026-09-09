@@ -151,6 +151,28 @@ public struct Alphabet: Hashable, Sendable {
         decodingTable[Int(character)] != Self.sentinel
     }
 
+    // MARK: - Table access
+    //
+    // The codecs hoist a table out for the duration of their loop, so a per-character
+    // lookup is a raw pointer read rather than a bounds-checked `Array` subscript.
+
+    /// Runs `body` over ``characters``, value to character, as a buffer.
+    ///
+    /// `table[Int(value)]` is the character rendering `value`.
+    @inlinable
+    public func withEncodingTable<R>(_ body: (UnsafeBufferPointer<UInt8>) -> R) -> R {
+        characters.withUnsafeBufferPointer(body)
+    }
+
+    /// Runs `body` over ``decodingTable``, character to value, as a 256 entry buffer.
+    ///
+    /// `table[Int(character)]` is the character's value, or ``sentinel`` if it is not in
+    /// this alphabet.
+    @inlinable
+    public func withDecodingTable<R>(_ body: (UnsafeBufferPointer<UInt8>) -> R) -> R {
+        decodingTable.withUnsafeBufferPointer(body)
+    }
+
     // MARK: - Case
 
     /// The same alphabet with its letters uppercased.
