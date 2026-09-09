@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -12,90 +12,110 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
+@_exported import BasesCore
 
-public enum Base2Error: Error, Sendable {
-    case invalidBinaryCharacter
-    /// The binary string's length (after removing spaces) is not a multiple of 8,
-    /// so it does not represent a whole number of bytes.
-    case invalidBinaryLength
-}
+/// Base2 (binary) encoding — one character per bit, most significant bit first.
+///
+/// ```swift
+/// Base2.encodedString([0x01])                  // "00000001"
+/// Base2.encodedString([0x01], byteSpacing: true)
+/// try Base2.decode("00000001")                 // [0x01]
+/// ```
+public enum Base2 {
 
-extension String {
-    public func binaryEncoded(using encoding: String.Encoding = .utf8, byteSpacing: Bool = false) -> String? {
-        guard let d = self.data(using: encoding) else { return nil }
-        return d.binaryEncoded(byteSpacing: byteSpacing)
-    }
+    /// The base2 alphabet, `0` and `1`.
+    public static let alphabet = Alphabet("01")
 
-    public var binaryDecoded: Data {
-        let s = self.replacingOccurrences(of: " ", with: "")
-        guard s.filter({ $0 == "0" || $0 == "1" }).count == s.count, s.count % 8 == 0 else { return Data() }
-        var bytes: [UInt8] = []
-        for byte in s.chunked(into: 8) {
-            if let u = UInt8(byte, radix: 2) {
-                bytes.append(u)
+    /// The character that separates octets when `byteSpacing` is requested.
+    private static let spaceCharacter: UInt8 = 0x20
+
+    /// The number of characters that represent one byte.
+    private static let charactersPerByte = 8
+
+    // MARK: - Encoding
+
+    /// Encodes bytes as base2 characters, most significant bit first.
+    ///
+    /// - Parameters:
+    ///   - bytes: The bytes to encode.
+    ///   - byteSpacing: When `true`, octets are separated by a single space.
+    /// - Returns: The encoded characters as ASCII bytes.
+    public static func encode(_ bytes: some Collection<UInt8>, byteSpacing: Bool = false) -> [UInt8] {
+        let byteCount = bytes.count
+        guard byteCount > 0 else { return [] }
+
+        let stride = byteSpacing ? charactersPerByte + 1 : charactersPerByte
+        let characterCount = byteCount * stride - (byteSpacing ? 1 : 0)
+        var characters = [UInt8](repeating: 0, count: characterCount)
+
+        let zero = alphabet.character(encoding: 0)
+        let one = alphabet.character(encoding: 1)
+
+        var offset = 0
+        for byte in bytes {
+            if byteSpacing && offset > 0 {
+                characters[offset] = spaceCharacter
+                offset += 1
+            }
+            var mask: UInt8 = 0b1000_0000
+            for _ in 0..<charactersPerByte {
+                characters[offset] = byte & mask == 0 ? zero : one
+                mask >>= 1
+                offset += 1
             }
         }
-        return Data(bytes)
+        return characters
     }
 
-    public var binaryDecodedString: String? {
-        // Decode the recovered bytes as UTF-8 so multi-byte scalars round-trip.
-        // (The previous per-byte `UnicodeScalar` mapping only worked for ASCII/Latin-1.)
-        guard let data = try? Data(binaryString: self) else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-}
-
-extension Data {
-
-    /// Data[1].binaryEncoded() -> "00000001"
-    public func binaryEncoded(byteSpacing: Bool = false) -> String {
-        [UInt8](self).binaryEncoded(byteSpacing: byteSpacing)
+    /// Encodes bytes as a base2 `String`, most significant bit first.
+    public static func encodedString(_ bytes: some Collection<UInt8>, byteSpacing: Bool = false) -> String {
+        String(decoding: encode(bytes, byteSpacing: byteSpacing), as: UTF8.self)
     }
 
-    /// Data(binaryString: "00000001") => [1]
-    public init(binaryString str: String) throws {
-        try self.init([UInt8](binaryString: str))
-    }
-}
+    // MARK: - Decoding
 
-extension Array where Element == UInt8 {
+    /// Decodes base2 characters into bytes.
+    ///
+    /// Spaces are ignored wherever they appear, so both the spaced and unspaced forms
+    /// produced by ``encode(_:byteSpacing:)`` decode.
+    ///
+    /// - Throws:
+    ///   - ``BasesError/nonAlphabetCharacter`` for a character other than `0`, `1` or a space
+    ///   - ``BasesError/invalidLength`` if the bits do not fill whole bytes.
+    public static func decode(_ characters: some Collection<UInt8>) throws(BasesError) -> [UInt8] {
+        var bytes = [UInt8]()
+        bytes.reserveCapacity(characters.count / charactersPerByte + 1)
 
-    /// Array<UInt8>[1].binaryEncoded() -> "00000001"
-    public func binaryEncoded(byteSpacing: Bool = false) -> String {
-        self.reduce("") { (accumulator, byte) -> String in
-            accumulator + (accumulator.isEmpty || !byteSpacing ? "" : " ")
-                + String(String(byte, radix: 2).reversed()).padding(toLength: 8, withPad: "0", startingAt: 0).reversed()
-        }
-    }
-
-    /// Array<UInt8>(binaryString: "00000001") => [1]
-    public init(binaryString str: String) throws {
-        let s = str.replacingOccurrences(of: " ", with: "")
-        guard s.filter({ $0 == "0" || $0 == "1" }).count == s.count else { throw Base2Error.invalidBinaryCharacter }
-        guard s.count % 8 == 0 else { throw Base2Error.invalidBinaryLength }
-        self = []
-        for byte in s.chunked(into: 8) {
-            if let u = UInt8(byte, radix: 2) {
-                self.append(u)
+        var accumulator: UInt8 = 0
+        var bits = 0
+        for character in characters {
+            if character == spaceCharacter { continue }
+            let bit = try alphabet.value(decoding: character)
+            accumulator = accumulator << 1 | bit
+            bits += 1
+            if bits == charactersPerByte {
+                bytes.append(accumulator)
+                accumulator = 0
+                bits = 0
             }
         }
+        guard bits == 0 else { throw BasesError.invalidLength }
+        return bytes
+    }
+
+    /// Decodes a base2 `String` into bytes.
+    public static func decode(_ string: some StringProtocol) throws(BasesError) -> [UInt8] {
+        try decode(string.utf8)
     }
 }
 
-extension Collection {
-    fileprivate func chunked(into size: Int) -> [SubSequence] {
-        var chunks: [SubSequence] = []
-        chunks.reserveCapacity((underestimatedCount + size - 1) / size)
-
-        var residual = self[...]
-        var splitIndex = startIndex
-        while formIndex(&splitIndex, offsetBy: size, limitedBy: endIndex) {
-            chunks.append(residual.prefix(upTo: splitIndex))
-            residual = residual.suffix(from: splitIndex)
-        }
-
-        return residual.isEmpty ? chunks : chunks + CollectionOfOne(residual)
+extension Collection<UInt8> {
+    /// Renders these bytes as a base2 `String`, most significant bit first.
+    ///
+    /// ```swift
+    /// [UInt8]([1]).binaryEncoded()  // "00000001"
+    /// ```
+    public func binaryEncoded(byteSpacing: Bool = false) -> String {
+        Base2.encodedString(self, byteSpacing: byteSpacing)
     }
 }
