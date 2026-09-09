@@ -41,30 +41,35 @@ public enum Base2 {
     ///   - byteSpacing: When `true`, octets are separated by a single space.
     /// - Returns: The encoded characters as ASCII bytes.
     public static func encode(_ bytes: some Collection<UInt8>, byteSpacing: Bool = false) -> [UInt8] {
+        withByteBuffer(bytes) { encodeCore($0, byteSpacing: byteSpacing) }
+    }
+
+    private static func encodeCore(_ bytes: UnsafeBufferPointer<UInt8>, byteSpacing: Bool) -> [UInt8] {
         let byteCount = bytes.count
         guard byteCount > 0 else { return [] }
 
         let stride = byteSpacing ? charactersPerByte + 1 : charactersPerByte
         let characterCount = byteCount * stride - (byteSpacing ? 1 : 0)
-        var characters = [UInt8](repeating: 0, count: characterCount)
 
         let zero = alphabet.character(encoding: 0)
         let one = alphabet.character(encoding: 1)
 
-        var offset = 0
-        for byte in bytes {
-            if byteSpacing && offset > 0 {
-                characters[offset] = spaceCharacter
-                offset += 1
+        return [UInt8](unsafeUninitializedCapacity: characterCount) { characters, initializedCount in
+            var offset = 0
+            for byte in bytes {
+                if byteSpacing && offset > 0 {
+                    characters[offset] = spaceCharacter
+                    offset += 1
+                }
+                var mask: UInt8 = 0b1000_0000
+                for _ in 0..<charactersPerByte {
+                    characters[offset] = byte & mask == 0 ? zero : one
+                    mask >>= 1
+                    offset += 1
+                }
             }
-            var mask: UInt8 = 0b1000_0000
-            for _ in 0..<charactersPerByte {
-                characters[offset] = byte & mask == 0 ? zero : one
-                mask >>= 1
-                offset += 1
-            }
+            initializedCount = characterCount
         }
-        return characters
     }
 
     /// Encodes bytes as a base2 `String`, most significant bit first.
