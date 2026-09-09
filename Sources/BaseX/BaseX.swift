@@ -108,29 +108,17 @@ public enum BaseX {
         // The buffer holds the digits big-endian, right-aligned.
         let size = alphabet.maximumDigitCount(forByteCount: byteCount - zeros)
         var digits = [UInt8](repeating: 0, count: size)
-        var length = 0
-        digits.withUnsafeMutableBufferPointer { digits in
-            for index in zeros..<byteCount {
-                var carry = UInt(bytes[index])
-                var written = 0
-                var position = size - 1
-                while carry != 0 || written < length {
-                    carry += 256 * UInt(digits[position])
-                    digits[position] = UInt8(carry % radix)
-                    carry /= radix
-                    written += 1
-                    position -= 1
-                }
-                length = written
-            }
+        let length = digits.withUnsafeMutableBufferPointer {
+            convert(bytes: bytes, from: zeros, into: $0, radix: radix)
         }
 
         let digitCount = zeros + length
         return alphabet.withEncodingTable { table in
             digits.withUnsafeBufferPointer { digits in
                 [UInt8](unsafeUninitializedCapacity: digitCount) { characters, initializedCount in
-                    let leader = table[0]
-                    for offset in 0..<zeros { characters[offset] = leader }
+                    if zeros > 0 {
+                        characters.baseAddress!.update(repeating: table[0], count: zeros)
+                    }
                     for offset in 0..<length {
                         characters[zeros + offset] = table[Int(digits[size - length + offset])]
                     }
@@ -138,6 +126,34 @@ public enum BaseX {
                 }
             }
         }
+    }
+
+    /// Converts `bytes[start...]` from base 256 into `digits`, in the alphabet's radix,
+    /// big-endian and right-aligned in the buffer.
+    ///
+    /// - Returns: The number of significant digits written, at the buffer's right edge.
+    private static func convert(
+        bytes: UnsafeBufferPointer<UInt8>,
+        from start: Int,
+        into digits: UnsafeMutableBufferPointer<UInt8>,
+        radix: UInt
+    ) -> Int {
+        let size = digits.count
+        var length = 0
+        for index in start..<bytes.count {
+            var carry = UInt(bytes[index])
+            var written = 0
+            var position = size - 1
+            while carry != 0 || written < length {
+                carry += 256 * UInt(digits[position])
+                digits[position] = UInt8(carry % radix)
+                carry /= radix
+                written += 1
+                position -= 1
+            }
+            length = written
+        }
+        return length
     }
 
     private static func positionalDecode(
@@ -154,40 +170,66 @@ public enum BaseX {
 
         let size = alphabet.maximumByteCount(forDigitCount: characterCount - zeros)
         var buffer = [UInt8](repeating: 0, count: size)
-        var length = 0
-
-        let failure: BasesError? = alphabet.withDecodingTable { table in
-            buffer.withUnsafeMutableBufferPointer { buffer -> BasesError? in
-                for index in zeros..<characterCount {
-                    let value = table[Int(characters[index])]
-                    guard value != Alphabet.sentinel else { return .nonAlphabetCharacter }
-                    var carry = UInt(value)
-                    var written = 0
-                    var position = size - 1
-                    while carry != 0 || written < length {
-                        carry += radix * UInt(buffer[position])
-                        buffer[position] = UInt8(carry & 0xFF)
-                        carry >>= 8
-                        written += 1
-                        position -= 1
-                    }
-                    length = written
-                }
-                return nil
+        let converted = alphabet.withDecodingTable { table in
+            buffer.withUnsafeMutableBufferPointer {
+                convert(characters: characters, from: zeros, into: $0, radix: radix, table: table)
             }
         }
-        if let failure { return .failure(failure) }
+        guard let length = converted else { return .failure(.nonAlphabetCharacter) }
 
         let byteCount = zeros + length
         return .success(
             buffer.withUnsafeBufferPointer { buffer in
                 [UInt8](unsafeUninitializedCapacity: byteCount) { bytes, initializedCount in
-                    for offset in 0..<zeros { bytes[offset] = 0 }
-                    for offset in 0..<length { bytes[zeros + offset] = buffer[size - length + offset] }
+                    if zeros > 0 {
+                        bytes.baseAddress!.update(repeating: 0, count: zeros)
+                    }
+                    if length > 0 {
+                        // The significant bytes are already contiguous, so this is a memcpy.
+                        (bytes.baseAddress! + zeros).update(
+                            from: buffer.baseAddress! + (size - length),
+                            count: length
+                        )
+                    }
                     initializedCount = byteCount
                 }
             }
         )
+    }
+
+    /// Converts `characters[start...]` from the alphabet's radix into `bytes`, base 256,
+    /// big-endian and right-aligned in the buffer.
+    ///
+    /// Standalone for the same reason as its encoding counterpart — see
+    /// ``convert(bytes:from:into:radix:)``.
+    ///
+    /// - Returns: The number of significant bytes written, at the buffer's right edge, or
+    ///   `nil` if a character was not in the alphabet.
+    private static func convert(
+        characters: UnsafeBufferPointer<UInt8>,
+        from start: Int,
+        into bytes: UnsafeMutableBufferPointer<UInt8>,
+        radix: UInt,
+        table: UnsafeBufferPointer<UInt8>
+    ) -> Int? {
+        let size = bytes.count
+        var length = 0
+        for index in start..<characters.count {
+            let value = table[Int(characters[index])]
+            guard value != Alphabet.sentinel else { return nil }
+            var carry = UInt(value)
+            var written = 0
+            var position = size - 1
+            while carry != 0 || written < length {
+                carry += radix * UInt(bytes[position])
+                bytes[position] = UInt8(carry & 0xFF)
+                carry >>= 8
+                written += 1
+                position -= 1
+            }
+            length = written
+        }
+        return length
     }
 
     // MARK: - The base16 fast path
