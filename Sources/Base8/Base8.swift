@@ -36,31 +36,40 @@ public enum Base8 {
     ///   - pad: Whether to pad the final block out to eight characters with `=`.
     /// - Returns: The encoded characters as ASCII bytes.
     public static func encode(_ bytes: some Collection<UInt8>, pad: PadOption = .padded) -> [UInt8] {
+        withByteBuffer(bytes) { encodeCore($0, pad: pad) }
+    }
+
+    private static func encodeCore(_ bytes: UnsafeBufferPointer<Byte>, pad: PadOption) -> [UInt8] {
         let unencodedByteCount = bytes.count
         guard unencodedByteCount > 0 else { return [] }
 
         let blockCount = (unencodedByteCount + unencodedBlockSize - 1) / unencodedBlockSize
-        var characters = [EncodedChar](repeating: paddingCharacter, count: blockCount * encodedBlockSize)
+        let remainder = unencodedByteCount % unencodedBlockSize
+        // The padded length is always a whole number of blocks. Unpadded, the final block
+        // contributes only its significant characters, reported as the initialized count,
+        // so the padding written past it is simply left out of the array.
+        let characterCount =
+            pad == .padded || remainder == 0
+            ? blockCount * encodedBlockSize
+            : (blockCount - 1) * encodedBlockSize + characterCount(encoding: remainder)
 
-        var block = [Byte](repeating: 0, count: unencodedBlockSize)
-        var filled = 0
-        var offset = 0
-        for byte in bytes {
-            block[filled] = byte
-            filled += 1
-            if filled == unencodedBlockSize {
-                write(encodeBlock(block, count: filled, using: alphabet), into: &characters, at: offset)
-                offset += encodedBlockSize
-                filled = 0
+        return alphabet.withEncodingTable { table in
+            [UInt8](unsafeUninitializedCapacity: blockCount * encodedBlockSize) { characters, initializedCount in
+                var readOffset = 0
+                var writeOffset = 0
+                while readOffset < unencodedByteCount {
+                    let blockSize = min(unencodedBlockSize, unencodedByteCount - readOffset)
+                    write(
+                        encodeBlock(bytes, at: readOffset, count: blockSize, using: table),
+                        into: characters,
+                        at: writeOffset
+                    )
+                    readOffset += blockSize
+                    writeOffset += encodedBlockSize
+                }
+                initializedCount = characterCount
             }
         }
-        if filled > 0 {
-            write(encodeBlock(block, count: filled, using: alphabet), into: &characters, at: offset)
-            if pad == .unpadded {
-                characters.removeLast(encodedBlockSize - characterCount(encoding: filled))
-            }
-        }
-        return characters
     }
 
     /// Encodes bytes as a base8 `String`.
@@ -80,66 +89,97 @@ public enum Base8 {
     ///   - ``BasesError/incompleteBlock`` if the final block holds an impossible number of characters.
     ///   - ``BasesError/strayBits`` if its unused bits are not zero.
     public static func decode(_ characters: some Collection<UInt8>) throws(BasesError) -> [UInt8] {
-        var bytes = [Byte]()
-        bytes.reserveCapacity(characters.count / encodedBlockSize * unencodedBlockSize + unencodedBlockSize)
-
-        var block = [EncodedChar](repeating: 0, count: encodedBlockSize)
-        var filled = 0
-        var sawPadding = false
-        for character in characters {
-            if character == paddingCharacter {
-                sawPadding = true
-                continue
-            }
-            // Padding only ever terminates the input, a character after it is malformed.
-            guard !sawPadding else { throw BasesError.nonAlphabetCharacter }
-            block[filled] = character
-            filled += 1
-            if filled == encodedBlockSize {
-                let decoded = try decodeBlock(
-                    block[0],
-                    block[1],
-                    block[2],
-                    block[3],
-                    block[4],
-                    block[5],
-                    block[6],
-                    block[7],
-                    using: alphabet
-                )
-                bytes.append(decoded.0)
-                bytes.append(decoded.1)
-                bytes.append(decoded.2)
-                filled = 0
-            }
+        switch withByteBuffer(characters, { decodeCore($0) }) {
+        case .success(let bytes): return bytes
+        case .failure(let error): throw error
         }
-
-        switch filled {
-        case 0:
-            break
-        case 3:
-            bytes.append(try decodeBlock(block[0], block[1], block[2], using: alphabet))
-        case 6:
-            let decoded = try decodeBlock(
-                block[0],
-                block[1],
-                block[2],
-                block[3],
-                block[4],
-                block[5],
-                using: alphabet
-            )
-            bytes.append(decoded.0)
-            bytes.append(decoded.1)
-        default:
-            throw BasesError.incompleteBlock
-        }
-        return bytes
     }
 
     /// Decodes a base8 `String` into bytes.
     public static func decode(_ string: some StringProtocol) throws(BasesError) -> [UInt8] {
-        try decode(string.utf8)
+        switch withByteBuffer(string, { decodeCore($0) }) {
+        case .success(let bytes): return bytes
+        case .failure(let error): throw error
+        }
+    }
+
+    private static func decodeCore(
+        _ characters: UnsafeBufferPointer<EncodedChar>
+    ) -> Result<[UInt8], BasesError> {
+        // Trailing padding is optional, so find where the significant characters end.
+        // A `=` anywhere before that is not in the alphabet and is rejected by the block
+        // decoder, which is how data after the padding is caught.
+        var encodedCount = characters.count
+        while encodedCount > 0 && characters[encodedCount - 1] == paddingCharacter {
+            encodedCount -= 1
+        }
+        guard encodedCount > 0 else { return .success([]) }
+
+        // This is an upper bound, the last block may be partial. The exact count is
+        // reported back as the initialized count once the blocks have been decoded.
+        let capacity = encodedCount / encodedBlockSize * unencodedBlockSize + unencodedBlockSize
+
+        return alphabet.withDecodingTable { table in
+            var failure: BasesError? = nil
+            let bytes = [UInt8](unsafeUninitializedCapacity: capacity) { bytes, initializedCount in
+                var readOffset = 0
+                var writeOffset = 0
+                blocks: while readOffset < encodedCount {
+                    let blockSize = min(encodedBlockSize, encodedCount - readOffset)
+                    do throws(BasesError) {
+                        switch blockSize {
+                        case 3:
+                            bytes[writeOffset] = try decodeBlock(
+                                characters[readOffset],
+                                characters[readOffset + 1],
+                                characters[readOffset + 2],
+                                using: table
+                            )
+                            writeOffset += 1
+                        case 6:
+                            let decoded = try decodeBlock(
+                                characters[readOffset],
+                                characters[readOffset + 1],
+                                characters[readOffset + 2],
+                                characters[readOffset + 3],
+                                characters[readOffset + 4],
+                                characters[readOffset + 5],
+                                using: table
+                            )
+                            bytes[writeOffset] = decoded.0
+                            bytes[writeOffset + 1] = decoded.1
+                            writeOffset += 2
+                        case encodedBlockSize:
+                            let decoded = try decodeBlock(
+                                characters[readOffset],
+                                characters[readOffset + 1],
+                                characters[readOffset + 2],
+                                characters[readOffset + 3],
+                                characters[readOffset + 4],
+                                characters[readOffset + 5],
+                                characters[readOffset + 6],
+                                characters[readOffset + 7],
+                                using: table
+                            )
+                            bytes[writeOffset] = decoded.0
+                            bytes[writeOffset + 1] = decoded.1
+                            bytes[writeOffset + 2] = decoded.2
+                            writeOffset += 3
+                        default:
+                            failure = .incompleteBlock
+                            break blocks
+                        }
+                    } catch {
+                        failure = error
+                        break blocks
+                    }
+                    readOffset += blockSize
+                }
+                initializedCount = writeOffset
+            }
+            if let failure { return .failure(failure) }
+            return .success(bytes)
+        }
     }
 
     // MARK: - Sizing
