@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -12,453 +12,184 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
+@_exported import BasesCore
 
-private func buildAlphabetBase(_ alphabet: String) -> AlphabetBase {
-    let characters = Array(alphabet)
-    // A usable positional alphabet needs at least a radix of 2, and every character
-    // must be distinct (duplicates would silently corrupt the decode lookup map).
-    precondition(characters.count >= 2, "BaseX alphabet must contain at least 2 characters")
-    precondition(
-        Set(characters).count == characters.count,
-        "BaseX alphabet must not contain duplicate characters"
-    )
-    let indexed: [Character] = characters.map { $0 }
-    var tmpMap = [Character: UInt]()
-    var i: UInt = 0
-    for c in characters {
-        tmpMap[c] = i
-        i += 1
-    }
-
-    let finalMap = tmpMap
-    return AlphabetBase(map: finalMap, indexed: indexed, base: UInt(characters.count), leader: characters.first!)
-}
-
-private struct AlphabetBase {
-    let map: [Character: UInt]
-    let indexed: [Character]
-    let base: UInt
-    let leader: Character
-}
-
+/// Positional base conversion for base10, base16, base36, base58 and any
+/// custom alphabet.
+///
+/// Unlike the block encodings, these bases treat the input as one big-endian integer, so a
+/// leading zero byte carries no value of its own. Following the convention base58 set, each
+/// leading zero byte is rendered as one leading zero *digit* and restored on the way back.
+///
+/// ```swift
+/// BaseX.encodedString(Array("hi libp2p!".utf8), into: .base58BTC)  // "6sEA5mWp2H4r4x"
+/// try BaseX.decode("6sEA5mWp2H4r4x", as: .base58BTC)
+/// ```
 public enum BaseX {
-    public enum BaseXError: Error, Sendable {
-        case invalidStringEncoding
-        case invalidCharacter
+
+    // MARK: - Encoding
+
+    /// Encodes bytes into the given alphabet.
+    ///
+    /// - Returns: The encoded characters as ASCII bytes.
+    public static func encode(_ bytes: some Collection<UInt8>, into base: Alphabets) -> [UInt8] {
+        if base.isHex {
+            return hexEncode(bytes, using: base.alphabet)
+        }
+        return positionalEncode(bytes, using: base.alphabet)
     }
 
-    public enum Alphabets: Equatable, Sendable {
-        case base10Decimal
-        case base16Hex
-        case base16HexUpper
-        case base36
-        case base36Upper
-        case base58BTC
-        case base58Flickr
-        case custom(String)
-
-        fileprivate var alphabet: AlphabetBase {
-            switch self {
-            case .base10Decimal:
-                return buildAlphabetBase("0123456789")
-            case .base16Hex:
-                return buildAlphabetBase("0123456789abcdef")
-            case .base16HexUpper:
-                return buildAlphabetBase("0123456789ABCDEF")
-            case .base36:
-                return buildAlphabetBase("0123456789abcdefghijklmnopqrstuvwxyz")
-            case .base36Upper:
-                return buildAlphabetBase("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-            case .base58BTC:
-                return buildAlphabetBase("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
-            case .base58Flickr:
-                return buildAlphabetBase("123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ")
-            case .custom(let alphabet):
-                return buildAlphabetBase(alphabet)
-            }
-        }
-
-        /// Number of encoded characters that represent a single leading zero byte.
-        ///
-        /// Note: the only values that return `2` are the base16 variants, and those are
-        /// always handled by the dedicated hex path in `encode`/`decode` (never by
-        /// `encodeALT`/`decodeALT`). In practice the generic ALT routines therefore only
-        /// ever observe `charsPerBit == 1`; the `== 2` branches within them are unreachable.
-        fileprivate var charsPerBit: Int {
-            switch self {
-            case .base16Hex: return 2
-            case .base16HexUpper: return 2
-            default: return 1
-            }
-        }
+    /// Encodes bytes into the given alphabet as a `String`.
+    public static func encodedString(_ bytes: some Collection<UInt8>, into base: Alphabets) -> String {
+        String(decoding: encode(bytes, into: base), as: UTF8.self)
     }
 
-    static func encodeALT(
-        _ str: String,
-        into base: BaseX.Alphabets,
-        using encoding: String.Encoding = .utf8
-    ) throws -> String {
-        guard let data = str.data(using: encoding) else { throw BaseX.BaseXError.invalidStringEncoding }
-        return BaseX.encodeALT(data, into: base)
-    }
+    // MARK: - Decoding
 
-    static func encodeALT(_ data: Data, into base: BaseX.Alphabets) -> String {
-        let alpha = base.alphabet
-        if data.count == 0 {
-            return ""
-        }
-        let bytes = [UInt8](data)
-
-        var digits: [UInt] = [0]
-        for byte in bytes {
-            var carry = UInt(byte)
-            for j in 0..<digits.count {
-                carry += digits[j] << 8
-                digits[j] = carry % alpha.base
-                carry = (carry / alpha.base) | 0
-            }
-            while carry > 0 {
-                digits.append(carry % alpha.base)
-                carry = (carry / alpha.base) | 0
-            }
-        }
-
-        /// If our data is a bunch of zeros, then remove the initial zero from our digits array
-        if digits == [0] { digits = [] }
-
-        var output: String = ""
-        // deal with leading zeros
-        for k in 0..<data.count {
-            if bytes[k] == UInt8(0) {
-                output.append(contentsOf: Array(repeating: alpha.leader, count: base.charsPerBit))
-            } else {
-                break
-            }
-        }
-
-        //Ensure we don't drop base16 leading zero
-        switch base {
-        case .base16Hex, .base16HexUpper:
-            if digits.count % 2 == 1 {
-                output.append(alpha.leader)
-            }
-        default:
-            break
-        }
-
-        // convert digits to a string
-        for d in digits.reversed() {
-            output.append(alpha.indexed[Int(d)])
-        }
-
-        let final = output
-        return final
-    }
-
-    public static func encode(
-        _ str: String,
-        into base: BaseX.Alphabets,
-        using encoding: String.Encoding = .utf8
-    ) throws -> String {
-        guard let data = str.data(using: encoding) else { throw BaseX.BaseXError.invalidStringEncoding }
-        return BaseX.encode(data, into: base)
-    }
-
-    public static func encode(_ data: Data, into base: BaseX.Alphabets) -> String {
-        guard base == .base16Hex || base == .base16HexUpper else { return BaseX.encodeALT(data, into: base) }
-        return [UInt8](data).toHexString(uppercase: base == .base16HexUpper)
-    }
-
-    static func decodeALT(
-        _ str: String,
-        as base: BaseX.Alphabets,
-        using encoding: String.Encoding = .utf8
-    ) throws -> String {
-        guard let res = String(data: try BaseX.decodeALT(str, as: base), encoding: encoding) else {
-            throw BaseX.BaseXError.invalidStringEncoding
-        }
-        return res
-    }
-
-    static func decodeALT(_ str: String, as base: BaseX.Alphabets) throws -> Data {
-        if str.isEmpty { return Data() }
-
-        let alpha = base.alphabet
-
-        var bytes: [UInt8] = [0]
-        let characters = Array(str)
-        for c in characters {
-            if alpha.map[c] == nil { throw BaseX.BaseXError.invalidCharacter }
-            var carry = alpha.map[c]!
-
-            for j in 0..<bytes.count {
-                carry += UInt(bytes[j]) * alpha.base
-                bytes[j] = UInt8(carry & 0xff)
-                carry >>= 8
-            }
-
-            while carry > 0 {
-                bytes.append(UInt8(carry & 0xff))
-                carry >>= 8
-            }
-        }
-
-        // deal with leading zeros
-        let leadingZero = Array(repeating: alpha.leader, count: base.charsPerBit)[0...]
-        let charArray = Array(str)
-        for k in stride(from: 0, to: characters.count, by: base.charsPerBit) {
-            guard str.count > k + base.charsPerBit else { break }  //prevent index out of bounds error
-            if charArray[k..<(k + base.charsPerBit)] == leadingZero {
-                bytes.append(0)
-            } else {
-                break
-            }
-        }
-
-        return Data(bytes.reversed())
-    }
-
+    /// Decodes characters in the given alphabet into bytes.
+    ///
+    /// - Throws:
+    ///    - ``BasesError/nonAlphabetCharacter`` for a character outside the alphabet.
+    ///    - ``BasesError/invalidLength`` if a base16 input holds an odd number of digits,
+    ///      since a dangling nibble is not a whole byte.
     public static func decode(
-        _ str: String,
-        as base: BaseX.Alphabets,
-        using encoding: String.Encoding = .utf8
-    ) throws -> String {
-        guard let res = String(data: try BaseX.decode(str, as: base), encoding: encoding) else {
-            throw BaseX.BaseXError.invalidStringEncoding
+        _ characters: some Collection<UInt8>,
+        as base: Alphabets
+    ) throws(BasesError) -> [UInt8] {
+        if base.isHex {
+            return try hexDecode(characters, using: base.alphabet)
         }
-        return res
+        return try positionalDecode(characters, using: base.alphabet)
     }
 
-    public static func decode(_ str: String, as base: BaseX.Alphabets) throws -> Data {
-        guard base == .base16Hex || base == .base16HexUpper else { return try BaseX.decodeALT(str, as: base) }
-        return Data(try [UInt8](validatingHex: str))
+    /// Decodes a `String` in the given alphabet into bytes.
+    public static func decode(
+        _ string: some StringProtocol,
+        as base: Alphabets
+    ) throws(BasesError) -> [UInt8] {
+        try decode(string.utf8, as: base)
     }
 
-}
+    // MARK: - The general positional path
 
-extension Data {
-    /// try Data(decoding: "429328951066508984658627669258025763026247056774804621697313" as: .base10Decimal) => Data
-    public init(decoding encodedString: String, as base: BaseX.Alphabets) throws {
-        self = try BaseX.decode(encodedString, as: base)
-    }
+    private static func positionalEncode(_ bytes: some Collection<UInt8>, using alphabet: Alphabet) -> [UInt8] {
+        guard !bytes.isEmpty else { return [] }
+        let radix = UInt(alphabet.radix)
 
-    //    var asHexString:String {
-    //        self.map { String($0, radix: 16) }.joined()
-    //    }
+        // Leading zero bytes carry no value in a positional encoding, so they are counted
+        // out and re-added as leading zero digits afterwards.
+        let zeros = bytes.prefix(while: { $0 == 0 }).count
+        let significant = bytes.dropFirst(zeros)
 
-    //    func asString(base:BaseX.Alphabets) -> String {
-    //        return BaseX.encode(self, into: base)
-    //    }
-}
-
-extension String {
-    /// try String(decoding: "429328951066508984658627669258025763026247056774804621697313", as: .base10Decimal, using: .utf8) => "Decentralize everything!!"
-    public init(
-        decoding encodedString: String,
-        as base: BaseX.Alphabets,
-        using stringEncoding: String.Encoding = .utf8
-    ) throws {
-        let d = try Data(decoding: encodedString, as: base)
-        guard let str = String(data: d, encoding: stringEncoding) else { throw BaseX.BaseXError.invalidStringEncoding }
-        self = str
-    }
-}
-
-//CryptoSwift's hex decoding implementation. Way faster than our current implementation.
-// It's nice to use the same library / implementation for multiple bases but we should try and optimize for base16 (hex) cause it's so often used...
-
-//
-//  CryptoSwift
-//
-//  Copyright (C) 2014-2017 Marcin Krzyżanowski <marcin@krzyzanowskim.com>
-//  This software is provided 'as-is', without any express or implied warranty.
-//
-//  In no event will the authors be held liable for any damages arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for any purpose,including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
-//
-//  - The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation is required.
-//  - Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
-//  - This notice may not be removed or altered from any source or binary distribution.
-//
-
-extension Array {
-    init(reserveCapacity: Int) {
-        self = [Element]()
-        self.reserveCapacity(reserveCapacity)
-    }
-
-    var slice: ArraySlice<Element> {
-        self[self.startIndex..<self.endIndex]
-    }
-}
-
-extension Array where Element == UInt8 {
-    /// Parses a hexadecimal string into bytes, throwing on malformed input.
-    ///
-    /// Unlike the lenient CryptoSwift-derived parser this replaces (which silently
-    /// returned an empty array on a bad character and promoted a dangling nibble to a
-    /// byte on odd-length input), invalid characters and odd-length input raise
-    /// `BaseX.BaseXError.invalidCharacter`. This makes base16 decoding report errors
-    /// the same way every other BaseX alphabet already does.
-    init(validatingHex hex: String) throws {
-        self.init(reserveCapacity: hex.unicodeScalars.lazy.underestimatedCount)
-        var buffer: UInt8?
-        var skip = hex.hasPrefix("0x") ? 2 : 0
-        for char in hex.unicodeScalars.lazy {
-            guard skip == 0 else {
-                skip -= 1
-                continue
+        // Sized from ⌊log2(radix)⌋ up front, so the conversion never re-allocates.
+        // The buffer holds the digits big-endian, right-aligned.
+        let size = alphabet.maximumDigitCount(forByteCount: significant.count)
+        var digits = [UInt8](repeating: 0, count: size)
+        var length = 0
+        for byte in significant {
+            var carry = UInt(byte)
+            var written = 0
+            var index = size - 1
+            while carry != 0 || written < length {
+                carry += 256 * UInt(digits[index])
+                digits[index] = UInt8(carry % radix)
+                carry /= radix
+                written += 1
+                index -= 1
             }
-            let v: UInt8
-            switch char.value {
-            case 48...57:  // '0'-'9'
-                v = UInt8(char.value) - 48
-            case 65...70:  // 'A'-'F'
-                v = UInt8(char.value) - 55
-            case 97...102:  // 'a'-'f'
-                v = UInt8(char.value) - 87
-            default:
-                throw BaseX.BaseXError.invalidCharacter
+            length = written
+        }
+
+        var characters = [UInt8]()
+        characters.reserveCapacity(zeros + length)
+        characters.append(contentsOf: repeatElement(alphabet.leader, count: zeros))
+        for index in (size - length)..<size {
+            characters.append(alphabet.character(encoding: digits[index]))
+        }
+        return characters
+    }
+
+    private static func positionalDecode(
+        _ characters: some Collection<UInt8>,
+        using alphabet: Alphabet
+    ) throws(BasesError) -> [UInt8] {
+        guard !characters.isEmpty else { return [] }
+        let radix = UInt(alphabet.radix)
+        let leader = alphabet.leader
+
+        let zeros = characters.prefix(while: { $0 == leader }).count
+        let significant = characters.dropFirst(zeros)
+
+        let size = alphabet.maximumByteCount(forDigitCount: significant.count)
+        var buffer = [UInt8](repeating: 0, count: size)
+        var length = 0
+        for character in significant {
+            var carry = UInt(try alphabet.value(decoding: character))
+            var written = 0
+            var index = size - 1
+            while carry != 0 || written < length {
+                carry += radix * UInt(buffer[index])
+                buffer[index] = UInt8(carry & 0xFF)
+                carry >>= 8
+                written += 1
+                index -= 1
             }
-            if let b = buffer {
-                append(b << 4 | v)
-                buffer = nil
+            length = written
+        }
+
+        var bytes = [UInt8]()
+        bytes.reserveCapacity(zeros + length)
+        bytes.append(contentsOf: repeatElement(0, count: zeros))
+        bytes.append(contentsOf: buffer[(size - length)..<size])
+        return bytes
+    }
+
+    // MARK: - The base16 fast path
+    //
+    // Base16 needs no big-number arithmetic, every byte is exactly two digits. Routing it
+    // through the positional path made encoding and decoding quadratic, a 4KB payload took
+    // over seven seconds. See `BaseXPerformance`.
+
+    private static func hexEncode(_ bytes: some Collection<UInt8>, using alphabet: Alphabet) -> [UInt8] {
+        var characters = [UInt8](repeating: 0, count: bytes.count * 2)
+        var offset = 0
+        for byte in bytes {
+            characters[offset] = alphabet.character(encoding: byte >> 4)
+            characters[offset + 1] = alphabet.character(encoding: byte & 0x0F)
+            offset += 2
+        }
+        return characters
+    }
+
+    private static func hexDecode(
+        _ characters: some Collection<UInt8>,
+        using alphabet: Alphabet
+    ) throws(BasesError) -> [UInt8] {
+        var bytes = [UInt8]()
+        bytes.reserveCapacity(characters.count / 2 + 1)
+
+        var index = characters.startIndex
+        // Tolerate a "0x" prefix, as the pre-0.4.0 parser did.
+        if characters.count >= 2 {
+            let second = characters.index(after: index)
+            if characters[index] == UInt8(ascii: "0") && characters[second] == UInt8(ascii: "x") {
+                index = characters.index(after: second)
+            }
+        }
+
+        var high: UInt8? = nil
+        while index != characters.endIndex {
+            let nibble = try alphabet.value(decoding: characters[index])
+            if let first = high {
+                bytes.append(first << 4 | nibble)
+                high = nil
             } else {
-                buffer = v
+                high = nibble
             }
+            index = characters.index(after: index)
         }
-        // A leftover nibble means an odd number of hex digits — not whole bytes.
-        if buffer != nil {
-            throw BaseX.BaseXError.invalidCharacter
-        }
-    }
-
-    /// Renders the bytes as a hexadecimal string in a single pass.
-    ///
-    /// Uses a direct nibble→character lookup for the requested case, avoiding both the
-    /// per-byte `String(_, radix:)` allocations and the extra `.uppercased()` pass the
-    /// previous uppercase path incurred.
-    func toHexString(uppercase: Bool = false) -> String {
-        let alphabet: [UInt8] =
-            uppercase
-            ? Array("0123456789ABCDEF".utf8)
-            : Array("0123456789abcdef".utf8)
-        var chars = [UInt8]()
-        chars.reserveCapacity(count * 2)
-        for byte in self {
-            chars.append(alphabet[Int(byte >> 4)])
-            chars.append(alphabet[Int(byte & 0x0F)])
-        }
-        return String(decoding: chars, as: UTF8.self)
+        // A leftover nibble means an odd number of hex digits.
+        guard high == nil else { throw BasesError.invalidLength }
+        return bytes
     }
 }
-
-/// Another Implementation (not sure if it's faster, same or slower, just another implementation
-//
-//struct Base58 {
-//    static let base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-//
-//    // Encode
-//    static func base58FromBytes(_ bytes: [UInt8]) -> String {
-//        var bytes = bytes
-//        var zerosCount = 0
-//        var length = 0
-//
-//        for b in bytes {
-//            if b != 0 { break }
-//            zerosCount += 1
-//        }
-//
-//        bytes.removeFirst(zerosCount)
-//
-//        let size = bytes.count * 138 / 100 + 1
-//
-//        var base58: [UInt8] = Array(repeating: 0, count: size)
-//        for b in bytes {
-//            var carry = Int(b)
-//            var i = 0
-//
-//            for j in 0...base58.count-1 where carry != 0 || i < length {
-//                carry += 256 * Int(base58[base58.count - j - 1])
-//                base58[base58.count - j - 1] = UInt8(carry % 58)
-//                carry /= 58
-//                i += 1
-//            }
-//
-//            assert(carry == 0)
-//
-//            length = i
-//        }
-//
-//        // skip leading zeros
-//        var zerosToRemove = 0
-//        var str = ""
-//        for b in base58 {
-//            if b != 0 { break }
-//            zerosToRemove += 1
-//        }
-//        base58.removeFirst(zerosToRemove)
-//
-//        while 0 < zerosCount {
-//            str = "\(str)1"
-//            zerosCount -= 1
-//        }
-//
-//        for b in base58 {
-//            str = "\(str)\(base58Alphabet[String.Index(encodedOffset: Int(b))])"
-//        }
-//
-//        return str
-//    }
-//
-//    // Decode
-//    static func bytesFromBase58(_ base58: String) -> [UInt8] {
-//        // remove leading and trailing whitespaces
-//        let string = base58.trimmingCharacters(in: CharacterSet.whitespaces)
-//
-//        guard !string.isEmpty else { return [] }
-//
-//        var zerosCount = 0
-//        var length = 0
-//        for c in string {
-//            if c != "1" { break }
-//            zerosCount += 1
-//        }
-//
-//        let size = string.lengthOfBytes(using: String.Encoding.utf8) * 733 / 1000 + 1 - zerosCount
-//        var base58: [UInt8] = Array(repeating: 0, count: size)
-//        for c in string where c != " " {
-//            // search for base58 character
-//            guard let base58Index = base58Alphabet.firstIndex(of: c) else { return [] }
-//
-//            var carry = base58Index.utf16Offset(in: base58Alphabet)
-//            var i = 0
-//            for j in 0...base58.count where carry != 0 || i < length {
-//                carry += 58 * Int(base58[base58.count - j - 1])
-//                base58[base58.count - j - 1] = UInt8(carry % 256)
-//                carry /= 256
-//                i += 1
-//            }
-//
-//            assert(carry == 0)
-//            length = i
-//        }
-//
-//        // skip leading zeros
-//        var zerosToRemove = 0
-//
-//        for b in base58 {
-//            if b != 0 { break }
-//            zerosToRemove += 1
-//        }
-//        base58.removeFirst(zerosToRemove)
-//
-//        var result: [UInt8] = Array(repeating: 0, count: zerosCount)
-//        for b in base58 {
-//            result.append(b)
-//        }
-//        return result
-//    }
-//}
