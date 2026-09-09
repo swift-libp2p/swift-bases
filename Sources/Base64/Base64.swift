@@ -34,10 +34,10 @@ public enum Base64 {
 
     /// Which base64 alphabet to use.
     public enum Variant: Sendable {
-        
+
         /// Standard RFC 4648 alphabet using `+` and `/` (multibase `m` / `M`).
         case standard
-        
+
         /// URL (and filename) safe alphabet using `-` and `_` (multibase `u` / `U`).
         case url
 
@@ -67,7 +67,7 @@ public enum Base64 {
 
     /// The size of a block before encoding, measured in bytes.
     private static let unencodedBlockSize = 3
-    
+
     /// The size of a block after encoding, measured in characters.
     private static let encodedBlockSize = 4
 
