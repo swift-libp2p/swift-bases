@@ -73,6 +73,7 @@ struct Base32Tests {
         "hello world": "nbswy3dpeb3w64tmmq======",
         "Decentralize everything!!": "irswgzloorzgc3djpjssazlwmvzhs5dinfxgoijb",
     ]
+
     /// Standard Base32 Encoding (lowercase with padding)
     @Test func testEncodeStandardLowercaseWithPadding() {
         if debug { print("-- Base32 Standard (Lowercase with Padding) --") }
@@ -304,14 +305,6 @@ struct Base32Tests {
 
     // MARK: - Z Tests
     @Test func testZ() {
-        //XCTAssertEqual(Base32.encode("".data(using: .ascii)!, variant: .z),       ""                 )
-        //XCTAssertEqual(Base32.encode("f".data(using: .ascii)!, variant: .z),      "CO======"         )
-        //XCTAssertEqual(Base32.encode("fo".data(using: .ascii)!, variant: .z),     "CPNG===="         )
-        //XCTAssertEqual(Base32.encode("foo".data(using: .ascii)!, variant: .z),    "CPNMU==="         )
-        //XCTAssertEqual(Base32.encode("foob".data(using: .ascii)!, variant: .z),   "CPNMUOG="         )
-        //XCTAssertEqual(Base32.encode("fooba".data(using: .ascii)!, variant: .z),  "CPNMUOJ1"         )
-        //XCTAssertEqual(Base32.encode("foobar".data(using: .ascii)!, variant: .z), "CPNMUOJ1E8======" )
-
         #expect(
             Base32.encode("yes mani !", variant: .z, options: .letterCase(.lower), .pad(false))
                 == "xf1zgedpcfzg1ebb"
@@ -368,7 +361,7 @@ struct Base32Tests {
 
     /// Compiles only if the public option/variant/error types are Sendable.
     @Test func testSendableConformances() {
-        let _: any Sendable = Variant.standard
+        let _: any Sendable = Base32.Variant.standard
         let _: any Sendable = Base32Options.pad(true)
         let _: any Sendable = LetterCase.lower
         let _: any Sendable = Base32.Error.strayBits

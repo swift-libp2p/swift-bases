@@ -3,7 +3,7 @@
 //
 // This source file is part of the swift-libp2p open source project
 //
-// Copyright (c) 2022-2025 swift-libp2p project authors
+// Copyright (c) 2022-2026 swift-libp2p project authors
 // Licensed under MIT
 //
 // See LICENSE for license information
@@ -19,6 +19,10 @@ let package = Package(
     name: "swift-bases",
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
+        // `Bases` re-exports every base module, so a consumer can depend on one product
+        // instead of listing each base individually.
+        .library(name: "Bases", targets: ["Bases"]),
+        .library(name: "BasesCore", targets: ["BasesCore"]),
         .library(name: "Base2", targets: ["Base2"]),
         .library(name: "Base8", targets: ["Base8"]),
         .library(name: "BaseX", targets: ["BaseX"]),
@@ -32,12 +36,21 @@ let package = Package(
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
-        .target(name: "Base2", dependencies: []),
-        .target(name: "Base8", dependencies: []),
-        .target(name: "BaseX", dependencies: []),
-        .target(name: "Base32", dependencies: []),
-        .target(name: "Base64", dependencies: []),
+        .target(name: "BasesCore", dependencies: []),
+        .target(name: "Base2", dependencies: ["BasesCore"]),
+        .target(name: "Base8", dependencies: ["BasesCore"]),
+        .target(name: "BaseX", dependencies: ["BasesCore"]),
+        .target(name: "Base32", dependencies: ["BasesCore"]),
+        .target(name: "Base64", dependencies: ["BasesCore"]),
+        .target(
+            name: "Bases",
+            dependencies: ["BasesCore", "Base2", "Base8", "BaseX", "Base32", "Base64"]
+        ),
 
+        .testTarget(
+            name: "BasesCoreTests",
+            dependencies: ["BasesCore"]
+        ),
         .testTarget(
             name: "Base2Tests",
             dependencies: ["Base2"]

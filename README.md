@@ -21,6 +21,8 @@
 ## Overview
 This library was designed to support the [Multibase](https://github.com/swift-libp2p/swift-multibase.git) package. At the moment is contains support for encoding/decoding into base 2, 8, 10, 16, 32, 36, 58 and 64 with some common variants for certain bases.
 
+Every base accepts `Collection<UInt8>` and returns `[UInt8]`, so slices encode without being copied first, and each alphabet is a cached `static let` carrying a 256 entry reverse lookup table. The pre-0.4.0 `Data`/`String` entry points still work as deprecated wrappers.
+
 #### Heads up ‼️
 - This library was built quickly and dirty as part of a larger project.
 - This library hasn't been extensively tested! I'm sure theres more performant and safe and accurate ways to perform the encodings/decodings.  
@@ -38,155 +40,204 @@ let package = Package(
     ...
     dependencies: [
         ...
-        .package(url: "https://github.com/swift-libp2p/swift-bases.git", .upToNextMajor(from: "0.0.1"))
+        .package(url: "https://github.com/swift-libp2p/swift-bases.git", .upToNextMinor(from: "0.4.0"))
     ],
     ...
     targets: [
         .target(
             ...
             dependencies: [
-                .product(name:  "Base2", package: "swift-bases"),
-                .product(name:  "Base8", package: "swift-bases"),
-                .product(name:  "BaseX", package: "swift-bases"),
-                .product(name: "Base32", package: "swift-bases"),
-                .product(name: "Base64", package: "swift-bases")
+                // `Bases` re-exports every base module. Depend on the individual
+                // products instead if you only need one or two.
+                .product(name: "Bases", package: "swift-bases")
             ]),
     ]
     ...
 )
 ```
 
+The individual products are `Base2`, `Base8`, `BaseX`, `Base32`, `Base64`, and `BasesCore` (the shared `Alphabet`, `BasesError`, and options types, which every base module re-exports).
+
 ## Usage
 
 ### Example
 
+Every encoder accepts a collection of bytes and every decoder returns `[UInt8]`. Use
+`encodedString(_:)` when you want a `String` out, and pass a `String` to `decode(_:)` when
+you have text to decode.
+
 ```Swift
-import Base2
+import Bases  // or the individual base modules
 
-let binaryEncoded = "Hello World".binaryEncoded(using: .utf8, byteSpacing: true) // -> "01001000 01100101 01101100 01101100 01101111 00100000 01010111 01101111 01110010 01101100 01100100"
-let decoded = binaryEncoded.binaryDecodedString // -> optional("Hello World")
-
-
-import Base8
-
-let base8Encoded = Base8.encode("hello world") // -> "320625543306744035667562330620=="
-let base8Decoded = try Base8.decodeToString("320625543306744035667562330620") // -> "hello world"
-// Note: Base8.decode(_:) returns the raw Data; use decodeToString(_:) for a String.
+let helloWorld = Array("Hello World".utf8)
+let helloworld = Array("hello world".utf8)
 
 
-import BaseX
+/// Base2
+
+Base2.encodedString(helloWorld, byteSpacing: true) // -> "01001000 01100101 01101100 01101100 01101111 00100000 01010111 01101111 01110010 01101100 01100100"
+let base2Decoded: [UInt8] = try Base2.decode("01001000 01100101") // -> [0x48, 0x65]
+
+
+/// Base8
+
+Base8.encodedString(helloworld)                    // -> "320625543306744035667562330620=="
+Base8.encodedString(helloworld, pad: .unpadded)    // -> "320625543306744035667562330620"
+let base8Decoded: [UInt8] = try Base8.decode("320625543306744035667562330620") // -> the bytes of "hello world"
+
+
+/// BaseX (10, 16, 36, 58)
 
 /// Base10
-let base10Encoded = try BaseX.encode("Hello World", into: .base10Decimal) // -> 87521618088882533792115812
-let base10Decoded:String = try BaseX.decode("87521618088882533792115812", as: .base10Decimal) // -> Hello World
+BaseX.encodedString(helloWorld, into: .base10Decimal)              // -> 87521618088882533792115812
+let base10Decoded: [UInt8] = try BaseX.decode("87521618088882533792115812", as: .base10Decimal) // -> Hello World
 
 /// Base16 (HEX) Lowercased
-let base16LEncoded = try BaseX.encode("Hello World", into: .base16Hex) // -> 48656c6c6f20576f726c64
-let base16LDecoded:String = try BaseX.decode("48656c6c6f20576f726c64", as: .base16Hex) // -> Hello World
+BaseX.encodedString(helloWorld, into: .base16Hex)              // -> 48656c6c6f20576f726c64
+try BaseX.decode(Array("48656c6c6f20576f726c64".utf8), as: .base16Hex)      // -> Hello World
 
 /// Base16 (HEX) Uppercased
-let base16UEncoded = try BaseX.encode("Hello World", into: .base16HexUpper) // -> 48656C6C6F20576F726C64
-let base16UDecoded:String = try BaseX.decode("48656C6C6F20576F726C64", as: .base16HexUpper) // -> Hello World
+BaseX.encodedString(helloWorld, into: .base16HexUpper)         // -> 48656C6C6F20576F726C64
+try BaseX.decode(Array("48656C6C6F20576F726C64".utf8), as: .base16HexUpper) // -> Hello World
 
 /// Base36 Lowercased
-let base36LEncoded = try BaseX.encode("Hello World", into: .base36) // -> azw5bz2xp56m4qyck
-let base36LDecoded:String = try BaseX.decode("azw5bz2xp56m4qyck", as: .base36) // -> Hello World
+BaseX.encodedString(helloWorld, into: .base36)                 // -> azw5bz2xp56m4qyck
+try BaseX.decode(Array("azw5bz2xp56m4qyck".utf8), as: .base36)              // -> Hello World
 
 /// Base36 Uppercased
-let base36UEncoded = try BaseX.encode("Hello World", into: .base36Upper) // -> AZW5BZ2XP56M4QYCK
-let base36UDecoded:String = try BaseX.decode("AZW5BZ2XP56M4QYCK", as: .base36Upper) // -> Hello World
+BaseX.encodedString(helloWorld, into: .base36Upper)            // -> AZW5BZ2XP56M4QYCK
+try BaseX.decode(Array("AZW5BZ2XP56M4QYCK".utf8), as: .base36Upper)         // -> Hello World
+
+/// Base16 and base36 decode either case, so there's no need to case-convert first
+try BaseX.decode(Array("AZW5BZ2XP56M4QYCK".utf8), as: .base36)              // -> Hello World
 
 /// Base58BTC
-let base58BTCEncoded = try BaseX.encode("Hello World", into: .base58BTC) // -> JxF12TrwUP45BMd
-let base58BTCDecoded:String = try BaseX.decode("JxF12TrwUP45BMd", as: .base58BTC) // -> Hello World
+BaseX.encodedString(helloWorld, into: .base58BTC)              // -> JxF12TrwUP45BMd
+try BaseX.decode(Array("JxF12TrwUP45BMd".utf8), as: .base58BTC)             // -> Hello World
 
 /// Base58Flickr
-let base58FlickrEncoded = try BaseX.encode("Hello World", into: .base58Flickr) // -> iXf12sRWto45bmC
-let base58FlickrDecoded:String = try BaseX.decode("iXf12sRWto45bmC", as: .base58Flickr) // -> Hello World
+BaseX.encodedString(helloWorld, into: .base58Flickr)           // -> iXf12sRWto45bmC
+try BaseX.decode(Array("iXf12sRWto45bmC".utf8), as: .base58Flickr)          // -> Hello World
 
 
-import Base32
+/// Base32
 
 /// Standard Base32 (Uppercased w/ padding)
-Base32.encode("hello world") // -> "NBSWY3DPEB3W64TMMQ======"
+Base32.encodedString(helloworld) // -> "NBSWY3DPEB3W64TMMQ======"
 
 /// Lowercased
-Base32.encode("hello world", options: .letterCase(.lower), .pad(true)) // -> "nbswy3dpeb3w64tmmq======"
+Base32.encodedString(helloworld, letterCase: .lower) // -> "nbswy3dpeb3w64tmmq======"
 
 /// Lowercased without padding
-Base32.encode("hello world", options: .letterCase(.lower), .pad(false)) // -> "nbswy3dpeb3w64tmmq"
+Base32.encodedString(helloworld, letterCase: .lower, pad: .unpadded) // -> "nbswy3dpeb3w64tmmq"
 
-/// Also includes 
+/// Also includes
 
 /// Hex variants
-Base32.encode("hello world", variant: .hex, options: .letterCase(.lower), .pad(false)) // -> "d1imor3f41rmusjccg"
+Base32.encodedString(helloworld, variant: .hex, letterCase: .lower, pad: .unpadded) // -> "d1imor3f41rmusjccg"
 
-/// and Z variants
-Base32.encode("hello world", variant: .z, options: .letterCase(.lower), .pad(false)) // -> "pb1sa5dxrb5s6hucco"
+/// and Z variants (whose natural case is lower)
+Base32.encodedString(helloworld, variant: .z, pad: .unpadded) // -> "pb1sa5dxrb5s6hucco"
 
-/// Decoding
-try Base32.decodeToString("d1imor3f41rmusjccg", variant: .hex) // -> "hello world"
-// Note: Base32.decode(_:) returns the raw Data; use decodeToString(_:) for a String.
+/// Decoding is case-insensitive and padding-tolerant for every variant
+let base32Decoded: [UInt8] = try Base32.decode("d1imor3f41rmusjccg", variant: .hex) // -> the bytes of "hello world"
 
 
-import Base64
+/// Base64 (multibase variants: m, M, u, U)
+
+let greeting = Array("hi libp2p!".utf8)
 
 /// Standard, padded (multibase `M`)
-Base64.encode("yes mani !")                                     // -> "eWVzIG1hbmkgIQ=="
+Base64.encodedString(greeting)                                  // -> "aGkgbGlicDJwIQ=="
 /// Standard, no padding (multibase `m`)
-Base64.encode("yes mani !", pad: false)                         // -> "eWVzIG1hbmkgIQ"
+Base64.encodedString(greeting, pad: .unpadded)                  // -> "aGkgbGlicDJwIQ"
 /// URL-safe, no padding (multibase `u`)
-Base64.encode("yes mani !", variant: .url, pad: false)          // -> "eWVzIG1hbmkgIQ"
+Base64.encodedString(greeting, variant: .url, pad: .unpadded)   // -> "aGkgbGlicDJwIQ"
 
 /// Decoding is padding-tolerant (accepts padded or unpadded input)
-try Base64.decodeToString("eWVzIG1hbmkgIQ", variant: .standard) // -> "yes mani !"
+let base64Decoded: [UInt8] = try Base64.decode("aGkgbGlicDJwIQ") // -> the bytes of "hi libp2p!"
 
+
+/// Slices encode without being copied first
+let framed = Array("<<>>".utf8) + greeting
+Base64.encodedString(framed.dropFirst(4), pad: .unpadded)       // -> "aGkgbGlicDJwIQ"
+
+/// One error type, so a single catch covers every base
+do {
+    _ = try Base32.decode(Array("MZXW6YT!".utf8))
+} catch {
+    // `decode` is declared `throws(BasesError)`, so `error` is a `BasesError` here
+    print(error == .nonAlphabetCharacter)
+}
 ```
 
 ### API
 ```Swift
 
+/// BasesCore — shared by, and re-exported from, every base module
+enum BasesError: Error, Hashable, Sendable {
+    case nonAlphabetCharacter, incompleteBlock, strayBits, invalidLength, invalidStringEncoding
+}
+enum LetterCase: Sendable, Hashable { case upper, lower }
+enum PadOption:  Sendable, Hashable { case padded, unpadded }
+
+struct Alphabet: Hashable, Sendable {
+    init(_ characters:String, caseInsensitive:Bool = false, aliases:[UInt8: UInt8] = [:])
+    var characters:[UInt8]      // the digits, in value order
+    var decodingTable:[UInt8]   // 256 entries; `Alphabet.sentinel` where absent
+    var characterString:String
+    var radix:Int
+    var leader:UInt8
+    func character(encoding value:UInt8) -> UInt8
+    func value(decoding character:UInt8) throws(BasesError) -> UInt8
+    func contains(_ character:UInt8) -> Bool
+    func uppercased() -> Alphabet
+    func lowercased() -> Alphabet
+}
+
+
 /// Base2
-String.binaryEncoded(using encoding:String.Encoding = .utf8, byteSpacing:Bool = false) -> String?
-String.binaryDecodedString -> String?
+Base2.encode(_ bytes:some Collection<UInt8>, byteSpacing:Bool = false) -> [UInt8]
+Base2.encodedString(_ bytes:some Collection<UInt8>, byteSpacing:Bool = false) -> String
+Base2.decode(_ characters:some Collection<UInt8>) throws(BasesError) -> [UInt8]
+Base2.decode(_ string:some StringProtocol) throws(BasesError) -> [UInt8]
+Base2.alphabet -> Alphabet
 
-Data(binaryString:String)
-Data.binaryEncoded(byteSpacing:Bool = false) -> String
-
-Array<UInt8>(binaryString:String)
-Array<UInt8>.binaryEncoded(byteSpacing:Bool = false) -> String
+Collection<UInt8>.binaryEncoded(byteSpacing:Bool = false) -> String
 
 
 /// Base8
-Base8.encode(_ str:String, options:Base8Options...) -> String
-Base8.decode(_ string: String) throws -> Data
-Base8.decodeToString(_ string: String, using:String.Encoding = .ascii) throws -> String
+Base8.encode(_ bytes:some Collection<UInt8>, pad:PadOption = .padded) -> [UInt8]
+Base8.encodedString(_ bytes:some Collection<UInt8>, pad:PadOption = .padded) -> String
+Base8.decode(_ characters:some Collection<UInt8>) throws(BasesError) -> [UInt8]
+Base8.decode(_ string:some StringProtocol) throws(BasesError) -> [UInt8]
+Base8.alphabet -> Alphabet
 
 
 /// BaseX (10, 16, 36, 58)
-BaseX.encode(_ str:String, into base:BaseX.Alphabets, using encoding: String.Encoding = .utf8) throws -> String
-BaseX.encode(_ data:Data, into base:BaseX.Alphabets) -> String
+BaseX.encode(_ bytes:some Collection<UInt8>, into base:BaseX.Alphabets) -> [UInt8]
+BaseX.encodedString(_ bytes:some Collection<UInt8>, into base:BaseX.Alphabets) -> String
+BaseX.decode(_ characters:some Collection<UInt8>, as base:BaseX.Alphabets) throws(BasesError) -> [UInt8]
+BaseX.decode(_ string:some StringProtocol, as base:BaseX.Alphabets) throws(BasesError) -> [UInt8]
+BaseX.Alphabets.alphabet -> Alphabet
+// .base10Decimal .base16Hex .base16HexUpper .base36 .base36Upper .base58BTC .base58Flickr .custom(String)
 
 
-/// Base32 
-Base32.encode(_ str:String, variant:Variant = .standard, options:Base32Options...) -> String
-Base32.encode(_ data:Data, variant:Variant = .standard, options:Base32Options...) -> String
-Base32.decode(_ string: String, variant:Variant = .standard) throws -> Data
-Base32.decodeToString(_ string:String, variant:Variant = .standard, using:String.Encoding = .ascii) throws -> String
+/// Base32
+Base32.encode(_ bytes:some Collection<UInt8>, variant:Variant = .standard, letterCase:LetterCase? = nil, pad:PadOption = .padded) -> [UInt8]
+Base32.encodedString(_ bytes:some Collection<UInt8>, variant:Variant = .standard, letterCase:LetterCase? = nil, pad:PadOption = .padded) -> String
+Base32.decode(_ characters:some Collection<UInt8>, variant:Variant = .standard) throws(BasesError) -> [UInt8]
+Base32.decode(_ string:some StringProtocol, variant:Variant = .standard) throws(BasesError) -> [UInt8]
+Variant.alphabet(_ letterCase:LetterCase? = nil) -> Alphabet  // .standard .hex .z
+Variant.naturalCase -> LetterCase
+
 
 /// Base64 (multibase variants: m, M, u, U)
-Base64.encode(_ data:Data, variant:Base64.Variant = .standard, pad:Bool = true) -> String
-Base64.encode(_ str:String, variant:Base64.Variant = .standard, pad:Bool = true) -> String
-Base64.decode(_ string:String, variant:Base64.Variant = .standard) throws -> Data
-Base64.decodeToString(_ string:String, variant:Base64.Variant = .standard, using:String.Encoding = .utf8) throws -> String
-
-/// Base64 convenience extensions
-String.base64CompliantString // Ensures the base64 string is padded correctly
-Data.base64URLEncoded(padded:Bool = true) -> String // Swaps "/" with "_", and "+" with "-"
-Data.base64Encoded(padded:Bool = true) -> String
-Data.base64URLPadEncodedData() -> Data? // The padded base64url string, as UTF-8 Data
-Data(base64URLEncoded: String) throws
-Data(base64URLEncoded: Data) throws
+Base64.encode(_ bytes:some Collection<UInt8>, variant:Base64.Variant = .standard, pad:PadOption = .padded) -> [UInt8]
+Base64.encodedString(_ bytes:some Collection<UInt8>, variant:Base64.Variant = .standard, pad:PadOption = .padded) -> String
+Base64.decode(_ characters:some Collection<UInt8>, variant:Base64.Variant = .standard) throws(BasesError) -> [UInt8]
+Base64.decode(_ string:some StringProtocol, variant:Base64.Variant = .standard) throws(BasesError) -> [UInt8]
+Base64.Variant.alphabet -> Alphabet  // .standard .url
 
 ```
 

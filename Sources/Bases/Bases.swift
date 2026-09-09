@@ -12,14 +12,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-import BasesCore
+//
+//  Bases.swift
+//
+//  An umbrella module that re-exports every module in the package, so you can write
+//  `import Bases` instead of importing each base module/target individually.
+//
 
-internal typealias EncodedChar = UInt8
-
-/// The character that pads a partial final block.
-internal let paddingCharacter: EncodedChar = Alphabet.paddingCharacter
-
-extension Base8 {
-    /// The base8 alphabet, `0` through `7`.
-    public static let alphabet = Alphabet("01234567")
-}
+@_exported import Base2
+@_exported import Base32
+@_exported import Base64
+@_exported import Base8
+@_exported import BaseX
+@_exported import BasesCore
