@@ -20,7 +20,7 @@ import Testing
 struct Base2ByteTests {
 
     let plaintext = Array("yes mani !".utf8)
-    
+
     /// The multibase test vector, with the `0` prefix character stripped.
     let encoded = "01111001011001010111001100100000011011010110000101101110011010010010000000100001"
 
