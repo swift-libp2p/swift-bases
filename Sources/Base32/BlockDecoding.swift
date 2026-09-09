@@ -39,6 +39,17 @@
 
 import BasesCore
 
+/// Looks a character's value up in the alphabet's decoding table.
+@inline(__always)
+private func value(
+    _ character: EncodedChar,
+    _ table: UnsafeBufferPointer<UInt8>
+) throws(BasesError) -> Quintet {
+    let value = table[Int(character)]
+    guard value != Alphabet.sentinel else { throw BasesError.nonAlphabetCharacter }
+    return value
+}
+
 internal func decodeBlock(
     _ c0: EncodedChar,
     _ c1: EncodedChar,
@@ -48,17 +59,17 @@ internal func decodeBlock(
     _ c5: EncodedChar,
     _ c6: EncodedChar,
     _ c7: EncodedChar,
-    using a: Alphabet
+    using table: UnsafeBufferPointer<UInt8>
 ) throws(BasesError) -> (Byte, Byte, Byte, Byte, Byte) {
     let q = (
-        try a.value(decoding: c0),
-        try a.value(decoding: c1),
-        try a.value(decoding: c2),
-        try a.value(decoding: c3),
-        try a.value(decoding: c4),
-        try a.value(decoding: c5),
-        try a.value(decoding: c6),
-        try a.value(decoding: c7)
+        try value(c0, table),
+        try value(c1, table),
+        try value(c2, table),
+        try value(c3, table),
+        try value(c4, table),
+        try value(c5, table),
+        try value(c6, table),
+        try value(c7, table)
     )
     return bytesFromQuintets(q.0, q.1, q.2, q.3, q.4, q.5, q.6, q.7)
 }
@@ -71,16 +82,16 @@ internal func decodeBlock(
     _ c4: EncodedChar,
     _ c5: EncodedChar,
     _ c6: EncodedChar,
-    using a: Alphabet
+    using table: UnsafeBufferPointer<UInt8>
 ) throws(BasesError) -> (Byte, Byte, Byte, Byte) {
     let q = (
-        try a.value(decoding: c0),
-        try a.value(decoding: c1),
-        try a.value(decoding: c2),
-        try a.value(decoding: c3),
-        try a.value(decoding: c4),
-        try a.value(decoding: c5),
-        try a.value(decoding: c6)
+        try value(c0, table),
+        try value(c1, table),
+        try value(c2, table),
+        try value(c3, table),
+        try value(c4, table),
+        try value(c5, table),
+        try value(c6, table)
     )
     return try bytesFromQuintets(q.0, q.1, q.2, q.3, q.4, q.5, q.6)
 }
@@ -91,14 +102,14 @@ internal func decodeBlock(
     _ c2: EncodedChar,
     _ c3: EncodedChar,
     _ c4: EncodedChar,
-    using a: Alphabet
+    using table: UnsafeBufferPointer<UInt8>
 ) throws(BasesError) -> (Byte, Byte, Byte) {
     let q = (
-        try a.value(decoding: c0),
-        try a.value(decoding: c1),
-        try a.value(decoding: c2),
-        try a.value(decoding: c3),
-        try a.value(decoding: c4)
+        try value(c0, table),
+        try value(c1, table),
+        try value(c2, table),
+        try value(c3, table),
+        try value(c4, table)
     )
     return try bytesFromQuintets(q.0, q.1, q.2, q.3, q.4)
 }
@@ -108,21 +119,25 @@ internal func decodeBlock(
     _ c1: EncodedChar,
     _ c2: EncodedChar,
     _ c3: EncodedChar,
-    using a: Alphabet
+    using table: UnsafeBufferPointer<UInt8>
 ) throws(BasesError) -> (Byte, Byte) {
     let q = (
-        try a.value(decoding: c0),
-        try a.value(decoding: c1),
-        try a.value(decoding: c2),
-        try a.value(decoding: c3)
+        try value(c0, table),
+        try value(c1, table),
+        try value(c2, table),
+        try value(c3, table)
     )
     return try bytesFromQuintets(q.0, q.1, q.2, q.3)
 }
 
-internal func decodeBlock(_ c0: EncodedChar, _ c1: EncodedChar, using a: Alphabet) throws(BasesError) -> (Byte) {
+internal func decodeBlock(
+    _ c0: EncodedChar,
+    _ c1: EncodedChar,
+    using table: UnsafeBufferPointer<UInt8>
+) throws(BasesError) -> (Byte) {
     let q = (
-        try a.value(decoding: c0),
-        try a.value(decoding: c1)
+        try value(c0, table),
+        try value(c1, table)
     )
     return try bytesFromQuintets(q.0, q.1)
 }

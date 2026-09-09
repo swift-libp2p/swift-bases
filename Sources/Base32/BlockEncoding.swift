@@ -44,29 +44,38 @@ internal typealias EncodedBlock = (
     EncodedChar, EncodedChar, EncodedChar
 )
 
-/// Encodes the first `count` bytes of `bytes` into a block of eight characters.
-///
-/// Reads from a plain byte buffer rather than the `UnsafeRawBufferPointer` this took
-/// before 0.4.0, so the caller no longer needs to route the input through `Data`.
-internal func encodeBlock(_ bytes: [Byte], count: Int, using alphabet: Alphabet) -> EncodedBlock {
+/// Encodes `count` bytes of `bytes`, starting at `offset`, into a block of eight characters.
+internal func encodeBlock(
+    _ bytes: UnsafeBufferPointer<Byte>,
+    at offset: Int,
+    count: Int,
+    using table: UnsafeBufferPointer<EncodedChar>
+) -> EncodedBlock {
     switch count {
     case 1:
-        return encodeBlock(bytes[0], using: alphabet)
+        return encodeBlock(bytes[offset], using: table)
     case 2:
-        return encodeBlock(bytes[0], bytes[1], using: alphabet)
+        return encodeBlock(bytes[offset], bytes[offset + 1], using: table)
     case 3:
-        return encodeBlock(bytes[0], bytes[1], bytes[2], using: alphabet)
+        return encodeBlock(bytes[offset], bytes[offset + 1], bytes[offset + 2], using: table)
     case 4:
-        return encodeBlock(bytes[0], bytes[1], bytes[2], bytes[3], using: alphabet)
+        return encodeBlock(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3], using: table)
     case 5:
-        return encodeBlock(bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], using: alphabet)
+        return encodeBlock(
+            bytes[offset],
+            bytes[offset + 1],
+            bytes[offset + 2],
+            bytes[offset + 3],
+            bytes[offset + 4],
+            using: table
+        )
     default:
         fatalError("Cannot encode \(count) bytes. Max block size is five.")
     }
 }
 
 /// Writes an encoded block into `characters` starting at `offset`.
-internal func write(_ block: EncodedBlock, into characters: inout [EncodedChar], at offset: Int) {
+internal func write(_ block: EncodedBlock, into characters: UnsafeMutableBufferPointer<EncodedChar>, at offset: Int) {
     characters[offset + 0] = block.0
     characters[offset + 1] = block.1
     characters[offset + 2] = block.2
@@ -77,52 +86,69 @@ internal func write(_ block: EncodedBlock, into characters: inout [EncodedChar],
     characters[offset + 7] = block.7
 }
 
-private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, _ b3: Byte, _ b4: Byte, using a: Alphabet) -> EncodedBlock
-{
+private func encodeBlock(
+    _ b0: Byte,
+    _ b1: Byte,
+    _ b2: Byte,
+    _ b3: Byte,
+    _ b4: Byte,
+    using table: UnsafeBufferPointer<EncodedChar>
+) -> EncodedBlock {
     let q = quintetsFromBytes(b0, b1, b2, b3, b4)
-    let c0 = a.character(encoding: q.0)
-    let c1 = a.character(encoding: q.1)
-    let c2 = a.character(encoding: q.2)
-    let c3 = a.character(encoding: q.3)
-    let c4 = a.character(encoding: q.4)
-    let c5 = a.character(encoding: q.5)
-    let c6 = a.character(encoding: q.6)
-    let c7 = a.character(encoding: q.7)
+    let c0 = table[Int(q.0)]
+    let c1 = table[Int(q.1)]
+    let c2 = table[Int(q.2)]
+    let c3 = table[Int(q.3)]
+    let c4 = table[Int(q.4)]
+    let c5 = table[Int(q.5)]
+    let c6 = table[Int(q.6)]
+    let c7 = table[Int(q.7)]
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
 
-private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, _ b3: Byte, using a: Alphabet) -> EncodedBlock {
+private func encodeBlock(
+    _ b0: Byte,
+    _ b1: Byte,
+    _ b2: Byte,
+    _ b3: Byte,
+    using table: UnsafeBufferPointer<EncodedChar>
+) -> EncodedBlock {
     let q = quintetsFromBytes(b0, b1, b2, b3)
-    let c0 = a.character(encoding: q.0)
-    let c1 = a.character(encoding: q.1)
-    let c2 = a.character(encoding: q.2)
-    let c3 = a.character(encoding: q.3)
-    let c4 = a.character(encoding: q.4)
-    let c5 = a.character(encoding: q.5)
-    let c6 = a.character(encoding: q.6)
+    let c0 = table[Int(q.0)]
+    let c1 = table[Int(q.1)]
+    let c2 = table[Int(q.2)]
+    let c3 = table[Int(q.3)]
+    let c4 = table[Int(q.4)]
+    let c5 = table[Int(q.5)]
+    let c6 = table[Int(q.6)]
     let c7 = paddingCharacter
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
 
-private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, using a: Alphabet) -> EncodedBlock {
+private func encodeBlock(
+    _ b0: Byte,
+    _ b1: Byte,
+    _ b2: Byte,
+    using table: UnsafeBufferPointer<EncodedChar>
+) -> EncodedBlock {
     let q = quintetsFromBytes(b0, b1, b2)
-    let c0 = a.character(encoding: q.0)
-    let c1 = a.character(encoding: q.1)
-    let c2 = a.character(encoding: q.2)
-    let c3 = a.character(encoding: q.3)
-    let c4 = a.character(encoding: q.4)
+    let c0 = table[Int(q.0)]
+    let c1 = table[Int(q.1)]
+    let c2 = table[Int(q.2)]
+    let c3 = table[Int(q.3)]
+    let c4 = table[Int(q.4)]
     let c5 = paddingCharacter
     let c6 = paddingCharacter
     let c7 = paddingCharacter
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
 
-private func encodeBlock(_ b0: Byte, _ b1: Byte, using a: Alphabet) -> EncodedBlock {
+private func encodeBlock(_ b0: Byte, _ b1: Byte, using table: UnsafeBufferPointer<EncodedChar>) -> EncodedBlock {
     let q = quintetsFromBytes(b0, b1)
-    let c0 = a.character(encoding: q.0)
-    let c1 = a.character(encoding: q.1)
-    let c2 = a.character(encoding: q.2)
-    let c3 = a.character(encoding: q.3)
+    let c0 = table[Int(q.0)]
+    let c1 = table[Int(q.1)]
+    let c2 = table[Int(q.2)]
+    let c3 = table[Int(q.3)]
     let c4 = paddingCharacter
     let c5 = paddingCharacter
     let c6 = paddingCharacter
@@ -130,10 +156,10 @@ private func encodeBlock(_ b0: Byte, _ b1: Byte, using a: Alphabet) -> EncodedBl
     return (c0, c1, c2, c3, c4, c5, c6, c7)
 }
 
-private func encodeBlock(_ b0: Byte, using a: Alphabet) -> EncodedBlock {
+private func encodeBlock(_ b0: Byte, using table: UnsafeBufferPointer<EncodedChar>) -> EncodedBlock {
     let q = quintetsFromBytes(b0)
-    let c0 = a.character(encoding: q.0)
-    let c1 = a.character(encoding: q.1)
+    let c0 = table[Int(q.0)]
+    let c1 = table[Int(q.1)]
     let c2 = paddingCharacter
     let c3 = paddingCharacter
     let c4 = paddingCharacter
