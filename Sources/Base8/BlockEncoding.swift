@@ -64,8 +64,7 @@ internal func encodeBlock(
 }
 
 /// Writes an encoded block into `characters` starting at `offset`.
-internal func write(_ block: EncodedBlock, into characters: UnsafeMutableBufferPointer<EncodedChar>, at offset: Int)
-{
+internal func write(_ block: EncodedBlock, into characters: UnsafeMutableBufferPointer<EncodedChar>, at offset: Int) {
     characters[offset + 0] = block.0
     characters[offset + 1] = block.1
     characters[offset + 2] = block.2
@@ -76,7 +75,12 @@ internal func write(_ block: EncodedBlock, into characters: UnsafeMutableBufferP
     characters[offset + 7] = block.7
 }
 
-private func encodeBlock(_ b0: Byte, _ b1: Byte, _ b2: Byte, using table: UnsafeBufferPointer<EncodedChar>) -> EncodedBlock {
+private func encodeBlock(
+    _ b0: Byte,
+    _ b1: Byte,
+    _ b2: Byte,
+    using table: UnsafeBufferPointer<EncodedChar>
+) -> EncodedBlock {
     let q = quintetsFromBytes(b0, b1, b2)
     let c0 = table[Int(q.0)]
     let c1 = table[Int(q.1)]
